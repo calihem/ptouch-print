@@ -48,7 +48,7 @@ struct _pt_dev_info ptdevs[] = {
 	{0x04f9, 0x2007, "PT-2420PC", 128, 180, FLAG_RASTER_PACKBITS},	/* 180dpi, 128px, maximum tape width 24mm, must send TIFF compressed pixel data */
 	{0x04f9, 0x2011, "PT-2450PC", 128, 180, FLAG_RASTER_PACKBITS},
 	{0x04f9, 0x2019, "PT-1950", 128, 180, FLAG_RASTER_PACKBITS},	/* 180dpi, apparently 112px printhead ?, maximum tape width 18mm - unconfirmed if it works */
-	{0x04f9, 0x201f, "PT-2700", 128, 180, FLAG_NONE},
+	{0x04f9, 0x201f, "PT-2700", 128, 180, FLAG_HAS_PRECUT},
 	{0x04f9, 0x202c, "PT-1230PC", 128, 180, FLAG_NONE},		/* 180dpi, supports tapes up to 12mm - I don't know how much pixels it can print! */
 	/* Notes about the PT-1230PC: While it is true that this printer supports
 	   max 12mm tapes, it apparently expects > 76px data - the first 32px
@@ -280,12 +280,16 @@ int ptouch_ff(ptouch_dev ptdev)
 	return ptouch_send(ptdev, (uint8_t *)cmd, strlen(cmd));
 }
 
-/* print and cut tape */
-int ptouch_eject(ptouch_dev ptdev)
+/* finish print and either cut or leave tape in machine */
+int ptouch_finalize(ptouch_dev ptdev, int chain)
 {
-	char cmd[]="\x1a";
-	return ptouch_send(ptdev, (uint8_t *)cmd, strlen(cmd));
+	char cmd_eject[]="\x1a"; /* Print command with feeding */
+	char cmd_chain[]="\x0c"; /* Print command (no cut) */
+
+	char *cmd = chain ? cmd_chain : cmd_eject;
+	return ptouch_send(ptdev, (uint8_t *)cmd, 1);
 }
+
 
 void ptouch_rawstatus(uint8_t raw[32])
 {

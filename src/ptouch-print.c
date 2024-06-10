@@ -57,6 +57,7 @@ char *save_png=NULL;
 int verbose=0;
 int fontsize=0;
 bool debug=false;
+bool chain=false;
 
 /* --------------------------------------------------------------------
    -------------------------------------------------------------------- */
@@ -428,6 +429,7 @@ void usage(char *progname)
 	printf("\t\t\t\tIf the text contains spaces, use quotation marks\n\t\t\t\taround it.\n");
 	printf("\t--cutmark\t\tPrint a mark where the tape should be cut\n");
 	printf("\t--pad <n>\t\tAdd n pixels padding (blank tape)\n");
+	printf("\t--chain\t\t\tSkip final feed of label and any automatic cut\n");
 	printf("other commands:\n");
 	printf("\t--version\t\tshow version info (required for bug report)\n");
 	printf("\t--info\t\t\tshow info about detected tape\n");
@@ -464,6 +466,8 @@ int parse_args(int argc, char **argv)
 			}
 		} else if (strcmp(&argv[i][1], "-cutmark") == 0) {
 			continue;	/* not done here */
+		} else if (strcmp(&argv[i][1], "-chain") == 0) {
+			chain=true;
 		} else if (strcmp(&argv[i][1], "-debug") == 0) {
 			debug=true;
 		} else if (strcmp(&argv[i][1], "-info") == 0) {
@@ -595,6 +599,8 @@ int main(int argc, char *argv[])
 			out=img_append(out, im);
 			gdImageDestroy(im);
 			im = NULL;
+		} else if (strcmp(&argv[i][1], "-chain") == 0) {
+			chain = true;
 		} else if (strcmp(&argv[i][1], "-debug") == 0) {
 			debug = true;
 		} else {
@@ -606,8 +612,8 @@ int main(int argc, char *argv[])
 			write_png(out, save_png);
 		} else {
 			print_img(ptdev, out);
-			if (ptouch_eject(ptdev) != 0) {
-				printf(_("ptouch_eject() failed\n"));
+			if (ptouch_finalize(ptdev, chain) != 0) {
+				printf(_("ptouch_finalize(%d) failed\n"), chain);
 				return -1;
 			}
 		}

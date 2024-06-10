@@ -105,7 +105,7 @@ int ptouch_ff(ptouch_dev ptdev);
 size_t ptouch_get_max_width(ptouch_dev ptdev);
 size_t ptouch_get_tape_width(ptouch_dev ptdev);
 int ptouch_page_flags(ptouch_dev ptdev, uint8_t page_flags);
-int ptouch_eject(ptouch_dev ptdev);
+int ptouch_finalize(ptouch_dev ptdev, int chain);
 int ptouch_getstatus(ptouch_dev ptdev);
 int ptouch_getmaxwidth(ptouch_dev ptdev);
 int ptouch_send_d460bt_magic(ptouch_dev ptdev);
