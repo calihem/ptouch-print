@@ -41,7 +41,7 @@ void rasterline_setpixel(uint8_t* rasterline, size_t size, int pixel);
 int get_baselineoffset(char *text, char *font, int fsz);
 int find_fontsize(int want_px, char *font, char *text);
 int needed_width(char *text, char *font, int fsz);
-int print_img(ptouch_dev ptdev, gdImage *im);
+int print_img(ptouch_dev ptdev, gdImage *im, int chain);
 int write_png(gdImage *im, const char *file);
 gdImage *img_append(gdImage *in_1, gdImage *in_2);
 gdImage *img_cutmark(int tape_width);
@@ -74,7 +74,7 @@ void rasterline_setpixel(uint8_t* rasterline, size_t size, int pixel)
 	return;
 }
 
-int print_img(ptouch_dev ptdev, gdImage *im)
+int print_img(ptouch_dev ptdev, gdImage *im, int chain)
 {
 	int d,i,k,offset,tape_width;
 	uint8_t rasterline[(ptdev->devinfo->max_px)/8];
@@ -112,6 +112,12 @@ int print_img(ptouch_dev ptdev, gdImage *im)
 		}
 	}
 	if ((ptdev->devinfo->flags & FLAG_D460BT_MAGIC) == FLAG_D460BT_MAGIC) {
+		if (chain) {
+			ptouch_send_d460bt_chain(ptdev);
+			if (debug) {
+				printf(_("send PT-D460BT chain commands\n"));
+			}
+		}
 		ptouch_send_d460bt_magic(ptdev);
 		if (debug) {
 			printf(_("send PT-D460BT magic commands\n"));
@@ -631,7 +637,7 @@ int main(int argc, char *argv[])
 		if (save_png) {
 			write_png(out, save_png);
 		} else {
-			print_img(ptdev, out);
+			print_img(ptdev, out, chain);
 			if (ptouch_finalize(ptdev, chain) != 0) {
 				printf(_("ptouch_finalize(%d) failed\n"), chain);
 				return -1;

@@ -195,6 +195,14 @@ int ptouch_init(ptouch_dev ptdev)
 	return ptouch_send(ptdev, (uint8_t *)cmd, sizeof(cmd));
 }
 
+/* Sends some magic commands to enable chaining on the PT-D460BT.
+   These should go out right before magic commands. */
+int ptouch_send_d460bt_chain(ptouch_dev ptdev)
+{
+	uint8_t cmd[] = "\x1b\x69\x4b\x00";
+	return ptouch_send(ptdev, (uint8_t *)cmd, sizeof(cmd));
+}
+
 /* Sends some magic commands to make prints work on the PT-D460BT.
    These should go out after info_cmd and right before the raster data. */
 int ptouch_send_d460bt_magic(ptouch_dev ptdev)
@@ -286,7 +294,8 @@ int ptouch_finalize(ptouch_dev ptdev, int chain)
 	char cmd_eject[]="\x1a"; /* Print command with feeding */
 	char cmd_chain[]="\x0c"; /* Print command (no cut) */
 
-	char *cmd = chain ? cmd_chain : cmd_eject;
+	// The D460BT devices use a leading packet to indicate chaining instead.
+	char *cmd = (chain && (!(ptdev->devinfo->flags & FLAG_D460BT_MAGIC))) ? cmd_chain : cmd_eject;
 	return ptouch_send(ptdev, (uint8_t *)cmd, 1);
 }
 

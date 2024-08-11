@@ -109,6 +109,7 @@ int ptouch_finalize(ptouch_dev ptdev, int chain);
 int ptouch_getstatus(ptouch_dev ptdev);
 int ptouch_getmaxwidth(ptouch_dev ptdev);
 int ptouch_send_d460bt_magic(ptouch_dev ptdev);
+int ptouch_send_d460bt_chain(ptouch_dev ptdev);
 int ptouch_enable_packbits(ptouch_dev ptdev);
 int ptouch_info_cmd(ptouch_dev ptdev, int size_x);
 int ptouch_send_precut_cmd(ptouch_dev ptdev, int precut);
