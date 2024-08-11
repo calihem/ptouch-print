@@ -1,7 +1,7 @@
 /*
 	ptouch-print - Print labels with images or text on a Brother P-Touch
 
-	Copyright (C) 2015-2023 Dominic Radermacher <dominic@familie-radermacher.ch>
+	Copyright (C) 2015-2024 Dominic Radermacher <dominic@familie-radermacher.ch>
 
 	This program is free software; you can redistribute it and/or modify it
 	under the terms of the GNU General Public License version 3 as
@@ -50,14 +50,15 @@ void unsupported_printer(ptouch_dev ptdev);
 void usage(char *progname);
 int parse_args(int argc, char **argv);
 
-// char *font_file="/usr/share/fonts/TTF/Ubuntu-M.ttf";
-// char *font_file="Ubuntu:medium";
-char *font_file="DejaVuSans";
-char *save_png=NULL;
-int verbose=0;
-int fontsize=0;
-bool debug=false;
-bool chain=false;
+// char *font_file = "/usr/share/fonts/TTF/Ubuntu-M.ttf";
+// char *font_file = "Ubuntu:medium";
+char *font_file = "DejaVuSans";
+char *save_png = NULL;
+int verbose = 0;
+int fontsize = 0;
+bool debug = false;
+bool chain = false;
+int forced_tape_width = 0;
 
 /* --------------------------------------------------------------------
    -------------------------------------------------------------------- */
@@ -422,6 +423,8 @@ void usage(char *progname)
 	printf("\t--font <file>\t\tuse font <file> or <name>\n");
 	printf("\t--fontsize <size>\tManually set fontsize\n");
 	printf("\t--writepng <file>\tinstead of printing, write output to png file\n");
+	printf("\t--force-tape-width <px>\tSet tape width in pixels, use together with\n");
+	printf("\t\t\t\t--writepng without a printer connected.\n");
 	printf("print commands:\n");
 	printf("\t--image <file>\t\tprint the given image which must be a 2 color\n");
 	printf("\t\t\t\t(black/white) png\n");
@@ -464,6 +467,12 @@ int parse_args(int argc, char **argv)
 			} else {
 				usage(argv[0]);
 			}
+		} else if (strcmp(&argv[i][1], "-force-tape-width") == 0) {
+			if (i+1<argc) {
+				forced_tape_width=strtol(argv[++i], NULL, 10);
+			} else {
+				usage(argv[0]);
+			}
 		} else if (strcmp(&argv[i][1], "-cutmark") == 0) {
 			continue;	/* not done here */
 		} else if (strcmp(&argv[i][1], "-chain") == 0) {
@@ -501,6 +510,9 @@ int parse_args(int argc, char **argv)
 			usage(argv[0]);
 		}
 	}
+	if (forced_tape_width && !save_png) {
+		forced_tape_width = 0;
+	}
 	return i;
 }
 
@@ -519,17 +531,21 @@ int main(int argc, char *argv[])
 	if (i != argc) {
 		usage(argv[0]);
 	}
-	if ((ptouch_open(&ptdev)) < 0) {
-		return 5;
+	if (!forced_tape_width) {
+		if ((ptouch_open(&ptdev)) < 0) {
+			return 5;
+		}
+		if (ptouch_init(ptdev) != 0) {
+			printf(_("ptouch_init() failed\n"));
+		}
+		if (ptouch_getstatus(ptdev) != 0) {
+			printf(_("ptouch_getstatus() failed\n"));
+			return 1;
+		}
+		tape_width=ptouch_get_tape_width(ptdev);
+	} else {
+		tape_width = forced_tape_width;
 	}
-	if (ptouch_init(ptdev) != 0) {
-		printf(_("ptouch_init() failed\n"));
-	}
-	if (ptouch_getstatus(ptdev) != 0) {
-		printf(_("ptouch_getstatus() failed\n"));
-		return 1;
-	}
-	tape_width=ptouch_get_tape_width(ptdev);
 	for (i=1; i<argc; ++i) {
 		if (*argv[i] != '-') {
 			break;
@@ -546,12 +562,16 @@ int main(int argc, char *argv[])
 			} else {
 				usage(argv[0]);
 			}
-		} else if (strcmp(&argv[i][1], "-writepng") == 0) {
-			if (i+1<argc) {
-				save_png=argv[++i];
+		} else if (strcmp(&argv[i][1], "-force-tape-width") == 0) {
+			if (forced_tape_width && save_png) {
+				++i;
+				continue;
 			} else {
 				usage(argv[0]);
 			}
+		} else if (strcmp(&argv[i][1], "-writepng") == 0) {
+			i++;
+			continue;
 		} else if (strcmp(&argv[i][1], "-info") == 0) {
 			printf(_("maximum printing width for this tape is %ipx\n"), tape_width);
 			printf("media type = %02x (%s)\n", ptdev->status->media_type, pt_mediatype(ptdev->status->media_type));
@@ -622,7 +642,9 @@ int main(int argc, char *argv[])
 	if (im != NULL) {
 		gdImageDestroy(im);
 	}
-	ptouch_close(ptdev);
+	if (forced_tape_width > 0) {
+		ptouch_close(ptdev);
+	}
 	libusb_exit(NULL);
 	return 0;
 }
