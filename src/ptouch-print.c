@@ -648,7 +648,7 @@ int main(int argc, char *argv[])
 	if (im != NULL) {
 		gdImageDestroy(im);
 	}
-	if (forced_tape_width > 0) {
+	if (!forced_tape_width) {
 		ptouch_close(ptdev);
 	}
 	libusb_exit(NULL);
