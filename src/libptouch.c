@@ -21,7 +21,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>	/* malloc() */
-#include <string.h>	/* memcmp()  */
+#include <string.h>	/* memcmp() */
 #include <sys/types.h>	/* open() */
 #include <sys/stat.h>	/* open() */
 #include <fcntl.h>	/* open() */
@@ -78,7 +78,7 @@ struct _pt_dev_info ptdevs[] = {
 	   cutting of tape, printing maximum of 73mm length) */
 	{0x04f9, 0x20e1, "PT-D610BT", 128, 180, FLAG_P700_INIT|FLAG_USE_INFO_CMD|FLAG_HAS_PRECUT|FLAG_D460BT_MAGIC},
 	//{0x04f9, 0x200d, "PT-3600", 384, 360, FLAG_RASTER_PACKBITS},
-	{0x04f9, 0x20af, "PT-P710BT", 128, 180, FLAG_RASTER_PACKBITS},
+	{0x04f9, 0x20af, "PT-P710BT", 128, 180, FLAG_RASTER_PACKBITS|FLAG_HAS_PRECUT},
 	{0,0,"",0,0,0}
 };
 

@@ -91,15 +91,15 @@ int print_img(ptouch_dev ptdev, gdImage *im, int chain)
 		printf(_("maximum printing width for this tape is %ipx\n"), tape_width);
 		return -1;
 	}
-	//offset=64-(gdImageSY(im)/2);	/* always print centered  */
+	//offset=64-(gdImageSY(im)/2);	/* always print centered */
 	size_t max_pixels=ptouch_get_max_width(ptdev);
-	offset=((int)max_pixels / 2)-(gdImageSY(im)/2);	/* always print centered  */
+	offset=((int)max_pixels / 2)-(gdImageSY(im)/2);	/* always print centered */
 	printf("max_pixels=%ld, offset=%d\n", max_pixels, offset);
 	if ((ptdev->devinfo->flags & FLAG_RASTER_PACKBITS) == FLAG_RASTER_PACKBITS) {
 		if (debug) {
 			printf("enable PackBits mode\n");
 		}
-	        ptouch_enable_packbits(ptdev);
+		ptouch_enable_packbits(ptdev);
 	}
 	if (ptouch_rasterstart(ptdev) != 0) {
 		printf(_("ptouch_rasterstart() failed\n"));
@@ -163,7 +163,7 @@ gdImage *image_load(const char *file)
 	} else {
 		f = fopen(file, "rb");
 	}
-	if (f  == NULL) {	/* error could not open file */
+	if (f == NULL) {	/* error could not open file */
 		return NULL;
 	}
 	if (fseek(f, 0L, SEEK_SET)) {	/* file is not seekable. eg 'stdin' */
@@ -431,6 +431,7 @@ void usage(char *progname)
 	printf("\t--writepng <file>\tinstead of printing, write output to png file\n");
 	printf("\t--force-tape-width <px>\tSet tape width in pixels, use together with\n");
 	printf("\t\t\t\t--writepng without a printer connected.\n");
+	printf("\t--copies <number>\tSets the number of identical prints\n");
 	printf("print commands:\n");
 	printf("\t--image <file>\t\tprint the given image which must be a 2 color\n");
 	printf("\t\t\t\t(black/white) png\n");
@@ -487,6 +488,12 @@ int parse_args(int argc, char **argv)
 			debug=true;
 		} else if (strcmp(&argv[i][1], "-info") == 0) {
 			continue;	/* not done here */
+		} else if (strcmp(&argv[i][1], "-copies") == 0) {
+			if (i+1<argc) {
+				++i;
+			} else {
+				usage(argv[0]);
+			}
 		} else if (strcmp(&argv[i][1], "-image") == 0) {
 			if (i+1<argc) {
 				++i;
@@ -524,7 +531,7 @@ int parse_args(int argc, char **argv)
 
 int main(int argc, char *argv[])
 {
-	int i, lines = 0, tape_width;
+	int i, lines = 0, tape_width, copies=1;
 	char *line[MAX_LINES];
 	gdImage *im=NULL;
 	gdImage *out=NULL;
@@ -629,6 +636,8 @@ int main(int argc, char *argv[])
 			chain = true;
 		} else if (strcmp(&argv[i][1], "-debug") == 0) {
 			debug = true;
+		} else if (strcmp(&argv[i][1], "-copies") == 0) {
+			copies = strtol(argv[++i], NULL, 10);
 		} else {
 			usage(argv[0]);
 		}
@@ -637,10 +646,12 @@ int main(int argc, char *argv[])
 		if (save_png) {
 			write_png(out, save_png);
 		} else {
-			print_img(ptdev, out, chain);
-			if (ptouch_finalize(ptdev, chain) != 0) {
-				printf(_("ptouch_finalize(%d) failed\n"), chain);
-				return -1;
+			for (i=0; i<copies; ++i) {
+				print_img(ptdev, out, chain);
+				if (ptouch_finalize(ptdev, ( chain || (i < copies-1) ) ) != 0) {
+					printf(_("ptouch_finalize(%d) failed\n"), chain);
+					return 2;
+				}
 			}
 		}
 		gdImageDestroy(out);
