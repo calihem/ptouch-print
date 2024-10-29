@@ -316,7 +316,7 @@ void ptouch_rawstatus(uint8_t raw[32])
 int ptouch_getstatus(ptouch_dev ptdev)
 {
 	char cmd[]="\x1biS";	/* 1B 69 53 = ESC i S = Status info request */
-	uint8_t buf[32];
+	uint8_t buf[32] = {};
 	int i, r, tx=0, tries=0;
 	struct timespec w;
 
