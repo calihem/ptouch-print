@@ -44,8 +44,8 @@ int needed_width(char *text, char *font, int fsz);
 int print_img(ptouch_dev ptdev, gdImage *im, int chain);
 int write_png(gdImage *im, const char *file);
 gdImage *img_append(gdImage *in_1, gdImage *in_2);
-gdImage *img_cutmark(int tape_width);
-gdImage *render_text(char *font, char *line[], int lines, int tape_width);
+gdImage *img_cutmark(int print_width);
+gdImage *render_text(char *font, char *line[], int lines, int print_width);
 void unsupported_printer(ptouch_dev ptdev);
 void usage(char *progname);
 int parse_args(int argc, char **argv);
@@ -58,7 +58,7 @@ int verbose = 0;
 int fontsize = 0;
 bool debug = false;
 bool chain = false;
-int forced_tape_width = 0;
+int forced_print_width = 0;
 
 /* --------------------------------------------------------------------
    -------------------------------------------------------------------- */
@@ -152,10 +152,10 @@ int print_img(ptouch_dev ptdev, gdImage *im, int chain)
 
 gdImage *image_load(const char *file)
 {
-	const uint8_t png[8]={0x89,'P','N','G',0x0d,0x0a,0x1a,0x0a};
+	const uint8_t png[8] = {0x89,'P','N','G',0x0d,0x0a,0x1a,0x0a};
 	char d[10];
 	FILE *f;
-	gdImage *img=NULL;
+	gdImage *img = NULL;
 
 	if (!strcmp(file, "-")) {
 		f = stdin;
@@ -166,14 +166,14 @@ gdImage *image_load(const char *file)
 		return NULL;
 	}
 	if (fseek(f, 0L, SEEK_SET)) {	/* file is not seekable. eg 'stdin' */
-		img=gdImageCreateFromPng(f);
+		img = gdImageCreateFromPng(f);
 	} else {
 		if (fread(d, sizeof(d), 1, f) != 1) {
 			return NULL;
 		}
 		rewind(f);
 		if (memcmp(d, png, 8) == 0) {
-			img=gdImageCreateFromPng(f);
+			img = gdImageCreateFromPng(f);
 		}
 	}
 	fclose(f);
@@ -200,14 +200,12 @@ int write_png(gdImage *im, const char *file)
 int get_baselineoffset(char *text, char *font, int fsz)
 {
 	int brect[8];
-	int o_offset;
-	int text_offset;
 
 	/* NOTE: This assumes that 'o' is always on the baseline */
 	gdImageStringFT(NULL, &brect[0], -1, font, fsz, 0.0, 0, 0, "o");
-	o_offset=brect[1];
+	int o_offset = brect[1];
 	gdImageStringFT(NULL, &brect[0], -1, font, fsz, 0.0, 0, 0, text);
-	text_offset=brect[1];
+	int text_offset = brect[1];
 	if (debug) {
 		printf(_("debug: o baseline offset - %d\n"), o_offset);
 		printf(_("debug: text baseline offset - %d\n"), text_offset);
@@ -222,7 +220,7 @@ int get_baselineoffset(char *text, char *font, int fsz)
    -------------------------------------------------------------------- */
 int find_fontsize(int want_px, char *font, char *text)
 {
-	int save=0;
+	int save = 0;
 	int brect[8];
 
 	for (int i=4; ; ++i) {
@@ -230,7 +228,7 @@ int find_fontsize(int want_px, char *font, char *text)
 			break;
 		}
 		if (brect[1]-brect[5] <= want_px) {
-			save=i;
+			save = i;
 		} else {
 			break;
 		}
@@ -261,12 +259,12 @@ int offset_x(char *text, char *font, int fsz)
 	return -brect[0];
 }
 
-gdImage *render_text(char *font, char *line[], int lines, int tape_width)
+gdImage *render_text(char *font, char *line[], int lines, int print_width)
 {
 	int brect[8];
-	int i, black, x=0, tmp=0, fsz=0;
+	int i, black, x = 0, tmp = 0, fsz = 0;
 	char *p;
-	gdImage *im=NULL;
+	gdImage *im = NULL;
 
 	if (debug) {
 		printf(_("render_text(): %i lines, font = '%s'\n"), lines, font);
@@ -275,11 +273,11 @@ gdImage *render_text(char *font, char *line[], int lines, int tape_width)
 		printf(_("warning: font config not available\n"));
 	}
 	if (fontsize > 0) {
-		fsz=fontsize;
+		fsz = fontsize;
 		printf(_("setting font size=%i\n"), fsz);
 	} else {
-		for (i=0; i<lines; ++i) {
-			if ((tmp=find_fontsize(tape_width/lines, font, line[i])) < 0) {
+		for (i = 0; i < lines; ++i) {
+			if ((tmp = find_fontsize(print_width/lines, font, line[i])) < 0) {
 				printf(_("could not estimate needed font size\n"));
 				return NULL;
 			}
@@ -289,48 +287,48 @@ gdImage *render_text(char *font, char *line[], int lines, int tape_width)
 		}
 		printf(_("choosing font size=%i\n"), fsz);
 	}
-	for(i=0; i<lines; ++i) {
-		tmp=needed_width(line[i], font_file, fsz);
+	for(i = 0; i < lines; ++i) {
+		tmp = needed_width(line[i], font_file, fsz);
 		if (tmp > x) {
-			x=tmp;
+			x = tmp;
 		}
 	}
-	im=gdImageCreatePalette(x, tape_width);
+	im = gdImageCreatePalette(x, print_width);
 	gdImageColorAllocate(im, 255, 255, 255);
-	black=gdImageColorAllocate(im, 0, 0, 0);
+	black = gdImageColorAllocate(im, 0, 0, 0);
 	/* gdImageStringFT(im,brect,fg,fontlist,size,angle,x,y,string) */
 	/* find max needed line height for ALL lines */
 	int max_height=0;
-	for (i=0; i<lines; ++i) {
-		if ((p=gdImageStringFT(NULL, &brect[0], -black, font, fsz, 0.0, 0, 0, line[i])) != NULL) {
+	for (i = 0; i < lines; ++i) {
+		if ((p = gdImageStringFT(NULL, &brect[0], -black, font, fsz, 0.0, 0, 0, line[i])) != NULL) {
 			printf(_("error in gdImageStringFT: %s\n"), p);
 		}
-		//int ofs=get_baselineoffset(line[i], font_file, fsz);
-		int lineheight=brect[1]-brect[5];
+		//int ofs = get_baselineoffset(line[i], font_file, fsz);
+		int lineheight = brect[1]-brect[5];
 		if (lineheight > max_height) {
-			max_height=lineheight;
+			max_height = lineheight;
 		}
 	}
 	if (debug) {
 		printf("debug: needed (max) height is %ipx\n", max_height);
 	}
-	if ((max_height * lines) > tape_width) {
+	if ((max_height * lines) > print_width) {
 		printf("Font size %d too large for %d lines\n", fsz, lines);
 		return NULL;
 	}
 	/* calculate unused pixels */
-	int unused_px = tape_width - (max_height * lines);
+	int unused_px = print_width - (max_height * lines);
 	/* now render lines */
-	for (i=0; i<lines; ++i) {
-		int ofs=get_baselineoffset(line[i], font_file, fsz);
-		//int pos=((i)*(tape_width/(lines)))+(max_height)-ofs-1;
-		int pos=((i)*(tape_width/(lines)))+(max_height)-ofs;
+	for (i = 0; i < lines; ++i) {
+		int ofs = get_baselineoffset(line[i], font_file, fsz);
+		//int pos = ((i)*(print_width/(lines)))+(max_height)-ofs-1;
+		int pos = ((i)*(print_width/(lines)))+(max_height)-ofs;
 		pos += (unused_px/lines) / 2;
 		if (debug) {
 			printf("debug: line %i pos=%i ofs=%i\n", i+1, pos, ofs);
 		}
 		int off_x = offset_x(line[i], font_file, fsz);
-		if ((p=gdImageStringFT(im, &brect[0], -black, font, fsz, 0.0, off_x, pos, line[i])) != NULL) {
+		if ((p = gdImageStringFT(im, &brect[0], -black, font, fsz, 0.0, off_x, pos, line[i])) != NULL) {
 			printf(_("error in gdImageStringFT: %s\n"), p);
 		}
 	}
@@ -339,27 +337,27 @@ gdImage *render_text(char *font, char *line[], int lines, int tape_width)
 
 gdImage *img_append(gdImage *in_1, gdImage *in_2)
 {
-	gdImage *out=NULL;
-	int width=0;
-	int i_1_x=0;
-	int length=0;
+	gdImage *out = NULL;
+	int width = 0;
+	int i_1_x = 0;
+	int length = 0;
 
 	if (in_1 != NULL) {
-		width=gdImageSY(in_1);
-		length=gdImageSX(in_1);
-		i_1_x=gdImageSX(in_1);
+		width = gdImageSY(in_1);
+		length = gdImageSX(in_1);
+		i_1_x = gdImageSX(in_1);
 	}
 	if (in_2 != NULL) {
 		length += gdImageSX(in_2);
 		/* width should be the same, but let's be sure */
 		if (gdImageSY(in_2) > width) {
-			width=gdImageSY(in_2);
+			width = gdImageSY(in_2);
 		}
 	}
 	if ((width == 0) || (length == 0)) {
 		return NULL;
 	}
-	out=gdImageCreatePalette(length, width);
+	out = gdImageCreatePalette(length, width);
 	if (out == NULL) {
 		return NULL;
 	}
@@ -383,36 +381,36 @@ gdImage *img_append(gdImage *in_1, gdImage *in_2)
 	return out;
 }
 
-gdImage *img_cutmark(int tape_width)
+gdImage *img_cutmark(int print_width)
 {
-	gdImage *out=NULL;
+	gdImage *out = NULL;
 	int style_dashed[6];
 
-	out=gdImageCreatePalette(9, tape_width);
+	out = gdImageCreatePalette(9, print_width);
 	if (out == NULL) {
 		return NULL;
 	}
 	gdImageColorAllocate(out, 255, 255, 255);
-	int black=gdImageColorAllocate(out, 0, 0, 0);
-	style_dashed[0]=gdTransparent;
-	style_dashed[1]=gdTransparent;
-	style_dashed[2]=gdTransparent;
-	style_dashed[3]=black;
-	style_dashed[4]=black;
-	style_dashed[5]=black;
+	int black = gdImageColorAllocate(out, 0, 0, 0);
+	style_dashed[0] = gdTransparent;
+	style_dashed[1] = gdTransparent;
+	style_dashed[2] = gdTransparent;
+	style_dashed[3] = black;
+	style_dashed[4] = black;
+	style_dashed[5] = black;
 	gdImageSetStyle(out, style_dashed, 6);
-	gdImageLine(out, 5, 0, 5, tape_width-1, gdStyled);
+	gdImageLine(out, 5, 0, 5, print_width - 1, gdStyled);
 	return out;
 }
 
-gdImage *img_padding(int tape_width, int length)
+gdImage *img_padding(int print_width, int length)
 {
-	gdImage *out=NULL;
+	gdImage *out = NULL;
 
 	if ((length < 1) || (length > 256)) {
 		length=1;
 	}
-	out=gdImageCreatePalette(length, tape_width);
+	out = gdImageCreatePalette(length, print_width);
 	if (out == NULL) {
 		return NULL;
 	}
@@ -451,62 +449,62 @@ int parse_args(int argc, char **argv)
 {
 	int lines, i;
 
-	for (i=1; i<argc; ++i) {
+	for (i = 1; i < argc; ++i) {
 		if (*argv[i] != '-') {
 			break;
 		}
 		if (strcmp(&argv[i][1], "-font") == 0) {
-			if (i+1<argc) {
-				font_file=argv[++i];
+			if (i+1 < argc) {
+				font_file = argv[++i];
 			} else {
 				usage(argv[0]);
 			}
 		} else if (strcmp(&argv[i][1], "-fontsize") == 0) {
-			if (i+1<argc) {
+			if (i+1 < argc) {
 				++i;
 			} else {
 				usage(argv[0]);
 			}
 		} else if (strcmp(&argv[i][1], "-writepng") == 0) {
-			if (i+1<argc) {
-				save_png=argv[++i];
+			if (i+1 < argc) {
+				save_png = argv[++i];
 			} else {
 				usage(argv[0]);
 			}
 		} else if (strcmp(&argv[i][1], "-force-tape-width") == 0) {
-			if (i+1<argc) {
-				forced_tape_width=strtol(argv[++i], NULL, 10);
+			if (i+1 < argc) {
+				forced_print_width = strtol(argv[++i], NULL, 10);
 			} else {
 				usage(argv[0]);
 			}
 		} else if (strcmp(&argv[i][1], "-cutmark") == 0) {
 			continue;	/* not done here */
 		} else if (strcmp(&argv[i][1], "-chain") == 0) {
-			chain=true;
+			chain = true;
 		} else if (strcmp(&argv[i][1], "-debug") == 0) {
-			debug=true;
+			debug = true;
 		} else if (strcmp(&argv[i][1], "-info") == 0) {
 			continue;	/* not done here */
 		} else if (strcmp(&argv[i][1], "-copies") == 0) {
-			if (i+1<argc) {
+			if (i+1 < argc) {
 				++i;
 			} else {
 				usage(argv[0]);
 			}
 		} else if (strcmp(&argv[i][1], "-image") == 0) {
-			if (i+1<argc) {
+			if (i+1 < argc) {
 				++i;
 			} else {
 				usage(argv[0]);
 			}
 		} else if (strcmp(&argv[i][1], "-pad") == 0) {
-			if (i+1<argc) {
+			if (i+1 < argc) {
 				++i;
 			} else {
 				usage(argv[0]);
 			}
 		} else if (strcmp(&argv[i][1], "-text") == 0) {
-			for (lines=0; (lines < MAX_LINES) && (i < argc); ++lines) {
+			for (lines = 0; (lines < MAX_LINES) && (i < argc); ++lines) {
 				if ((i+1 >= argc) || (argv[i+1][0] == '-')) {
 					break;
 				}
@@ -522,28 +520,30 @@ int parse_args(int argc, char **argv)
 			usage(argv[0]);
 		}
 	}
-	if (forced_tape_width && !save_png) {
-		forced_tape_width = 0;
+	if (forced_print_width && !save_png) {
+		forced_print_width = 0;
 	}
 	return i;
 }
 
 int main(int argc, char *argv[])
 {
-	int i, lines = 0, tape_width, copies=1;
+	int i, lines = 0, copies = 1, print_width = 0;
 	char *line[MAX_LINES];
-	gdImage *im=NULL;
-	gdImage *out=NULL;
-	ptouch_dev ptdev=NULL;
+	gdImage *im = NULL;
+	gdImage *out = NULL;
+	ptouch_dev ptdev = NULL;
 
 	setlocale(LC_ALL, "");
 	bindtextdomain("ptouch-print", "/usr/share/locale/");
 	textdomain("ptouch-print");
-	i=parse_args(argc, argv);
+	i = parse_args(argc, argv);
 	if (i != argc) {
 		usage(argv[0]);
 	}
-	if (!forced_tape_width) {
+	int tape_width = ptouch_get_tape_width(ptdev);
+	int max_print_width = ptouch_get_max_width(ptdev);
+	if (!forced_print_width) {
 		if ((ptouch_open(&ptdev)) < 0) {
 			return 5;
 		}
@@ -554,28 +554,32 @@ int main(int argc, char *argv[])
 			printf(_("ptouch_getstatus() failed\n"));
 			return 1;
 		}
-		tape_width=ptouch_get_tape_width(ptdev);
+		print_width = tape_width;
 	} else {
-		tape_width = forced_tape_width;
+		print_width = forced_print_width;
 	}
-	for (i=1; i<argc; ++i) {
+	// do not try to print more pixels than printhead has
+	if (print_width > max_print_width) {
+		print_width = max_print_width;
+	}
+	for (i = 1; i < argc; ++i) {
 		if (*argv[i] != '-') {
 			break;
 		}
 		if (strcmp(&argv[i][1], "-font") == 0) {
-			if (i+1<argc) {
-				font_file=argv[++i];
+			if (i+1 < argc) {
+				font_file = argv[++i];
 			} else {
 				usage(argv[0]);
 			}
 		} else if (strcmp(&argv[i][1], "-fontsize") == 0) {
-			if (i+1<argc) {
-				fontsize=strtol(argv[++i], NULL, 10);
+			if (i+1 < argc) {
+				fontsize = strtol(argv[++i], NULL, 10);
 			} else {
 				usage(argv[0]);
 			}
 		} else if (strcmp(&argv[i][1], "-force-tape-width") == 0) {
-			if (forced_tape_width && save_png) {
+			if (forced_print_width && save_png) {
 				++i;
 				continue;
 			} else {
@@ -585,6 +589,7 @@ int main(int argc, char *argv[])
 			i++;
 			continue;
 		} else if (strcmp(&argv[i][1], "-info") == 0) {
+			printf(_("maximum printing width for this printer is %ipx\n"), max_print_width);
 			printf(_("maximum printing width for this tape is %ipx\n"), tape_width);
 			printf("media type = %02x (%s)\n", ptdev->status->media_type, pt_mediatype(ptdev->status->media_type));
 			printf("media width = %d mm\n", ptdev->status->media_width);
@@ -596,39 +601,39 @@ int main(int argc, char *argv[])
 			}
 			exit(0);
 		} else if (strcmp(&argv[i][1], "-image") == 0) {
-			if ((im=image_load(argv[++i])) == NULL) {
+			if ((im = image_load(argv[++i])) == NULL) {
 				printf(_("failed to load image file\n"));
 				return 1;
 			}
-			out=img_append(out, im);
+			out = img_append(out, im);
 			gdImageDestroy(im);
 			im = NULL;
 		} else if (strcmp(&argv[i][1], "-text") == 0) {
-			for (lines=0; (lines < MAX_LINES) && (i < argc); ++lines) {
+			for (lines = 0; (lines < MAX_LINES) && (i < argc); ++lines) {
 				if ((i+1 >= argc) || (argv[i+1][0] == '-')) {
 					break;
 				}
 				++i;
-				line[lines]=argv[i];
+				line[lines] = argv[i];
 			}
 			if (lines) {
-				if ((im=render_text(font_file, line, lines, tape_width)) == NULL) {
+				if ((im = render_text(font_file, line, lines, print_width)) == NULL) {
 					printf(_("could not render text\n"));
 					return 1;
 				}
-				out=img_append(out, im);
+				out = img_append(out, im);
 				gdImageDestroy(im);
 				im = NULL;
 			}
 		} else if (strcmp(&argv[i][1], "-cutmark") == 0) {
-			im=img_cutmark(tape_width);
-			out=img_append(out, im);
+			im = img_cutmark(print_width);
+			out = img_append(out, im);
 			gdImageDestroy(im);
 			im = NULL;
 		} else if (strcmp(&argv[i][1], "-pad") == 0) {
 			int length=strtol(argv[++i], NULL, 10);
-			im=img_padding(tape_width, length);
-			out=img_append(out, im);
+			im = img_padding(print_width, length);
+			out = img_append(out, im);
 			gdImageDestroy(im);
 			im = NULL;
 		} else if (strcmp(&argv[i][1], "-chain") == 0) {
@@ -645,7 +650,7 @@ int main(int argc, char *argv[])
 		if (save_png) {
 			write_png(out, save_png);
 		} else {
-			for (i=0; i<copies; ++i) {
+			for (i = 0; i < copies; ++i) {
 				print_img(ptdev, out, chain);
 				if (ptouch_finalize(ptdev, ( chain || (i < copies-1) ) ) != 0) {
 					printf(_("ptouch_finalize(%d) failed\n"), chain);
@@ -658,7 +663,7 @@ int main(int argc, char *argv[])
 	if (im != NULL) {
 		gdImageDestroy(im);
 	}
-	if (!forced_tape_width) {
+	if (!forced_print_width) {
 		ptouch_close(ptdev);
 	}
 	libusb_exit(NULL);
