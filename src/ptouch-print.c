@@ -76,24 +76,23 @@ void rasterline_setpixel(uint8_t* rasterline, size_t size, int pixel)
 
 int print_img(ptouch_dev ptdev, gdImage *im, int chain)
 {
-	int d,i,k,offset,tape_width;
 	uint8_t rasterline[(ptdev->devinfo->max_px)/8];
 
 	if (!im) {
 		printf(_("nothing to print\n"));
 		return -1;
 	}
-	tape_width=ptouch_get_tape_width(ptdev);
+	int tape_width = ptouch_get_tape_width(ptdev);
+	size_t max_pixels = ptouch_get_max_width(ptdev);
 	/* find out whether color 0 or color 1 is darker */
-	d=(gdImageRed(im,1)+gdImageGreen(im,1)+gdImageBlue(im,1) < gdImageRed(im,0)+gdImageGreen(im,0)+gdImageBlue(im,0))?1:0;
+	int d = (gdImageRed(im,1) + gdImageGreen(im,1) + gdImageBlue(im,1) < gdImageRed(im,0) + gdImageGreen(im,0) + gdImageBlue(im,0))?1:0;
 	if (gdImageSY(im) > tape_width) {
 		printf(_("image is too large (%ipx x %ipx)\n"), gdImageSX(im), gdImageSY(im));
 		printf(_("maximum printing width for this tape is %ipx\n"), tape_width);
 		return -1;
 	}
 	printf(_("image size (%ipx x %ipx)\n"), gdImageSX(im), gdImageSY(im));
-	size_t max_pixels=ptouch_get_max_width(ptdev);
-	offset=((int)max_pixels / 2)-(gdImageSY(im)/2);	/* always print centered */
+	int offset = ((int)max_pixels / 2) - (gdImageSY(im)/2);	/* always print centered */
 	printf("max_pixels=%ld, offset=%d\n", max_pixels, offset);
 	if ((ptdev->devinfo->flags & FLAG_RASTER_PACKBITS) == FLAG_RASTER_PACKBITS) {
 		if (debug) {
@@ -129,10 +128,10 @@ int print_img(ptouch_dev ptdev, gdImage *im, int chain)
 			printf(_("send precut command\n"));
 		}
 	}
-	for (k=0; k<gdImageSX(im); k+=1) {
+	for (int k = 0; k < gdImageSX(im); ++k) {
 		memset(rasterline, 0, sizeof(rasterline));
-		for (i=0; i<gdImageSY(im); i+=1) {
-			if (gdImageGetPixel(im, k, gdImageSY(im)-1-i) == d) {
+		for (int i = 0; i < gdImageSY(im); ++i) {
+			if (gdImageGetPixel(im, k, gdImageSY(im) - 1 - i) == d) {
 				rasterline_setpixel(rasterline, sizeof(rasterline), offset+i);
 			}
 		}
