@@ -163,6 +163,9 @@ int ptouch_open(ptouch_dev *ptdev)
 
 int ptouch_close(ptouch_dev ptdev)
 {
+	if (!ptdev) {
+		return -1;
+	}
 	libusb_release_interface(ptdev->h, 0);
 	libusb_close(ptdev->h);
 	return 0;
@@ -172,7 +175,11 @@ int ptouch_send(ptouch_dev ptdev, uint8_t *data, size_t len)
 {
 	int r, tx;
 
-	if ((ptdev == NULL) || (len > 128)) {
+	if (!ptdev) {
+		fprintf(stderr, _("debug: called ptouch_send() with NULL ptdev\n"));
+		return -1;
+	}
+	if (len > 128) {
 		return -1;
 	}
 	if ((r=libusb_bulk_transfer(ptdev->h, 0x02, data, (int)len, &tx, 0)) != 0) {
@@ -228,6 +235,11 @@ int ptouch_enable_packbits(ptouch_dev ptdev)
 /* print information command */
 int ptouch_info_cmd(ptouch_dev ptdev, int size_x)
 {
+	if (!ptdev) {
+		fprintf(stderr, _("debug: called ptouch_info_cmd() with NULL ptdev\n"));
+		return -1;
+	}
+
 	/* 1B 69 7A {n1} {n2} {n3} {n4} {n5} {n6} {n7} {n8} {n9} {n10} */
 	uint8_t cmd[] = "\x1b\x69\x7a\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 
@@ -265,6 +277,10 @@ int ptouch_send_precut_cmd(ptouch_dev ptdev, int precut)
 
 int ptouch_rasterstart(ptouch_dev ptdev)
 {
+	if (!ptdev) {
+		fprintf(stderr, _("debug: called ptouch_rasterstart() with NULL ptdev\n"));
+		return -1;
+	}
 	/* 1B 69 52 01 = Select graphics transfer mode = Raster */
 	char cmd[] = "\x1b\x69\x52\x01";
 	/* 1B 69 61 01 = switch mode (0=esc/p, 1=raster mode) */
@@ -292,6 +308,11 @@ int ptouch_ff(ptouch_dev ptdev)
 /* finish print and either cut or leave tape in machine */
 int ptouch_finalize(ptouch_dev ptdev, int chain)
 {
+	if (!ptdev) {
+		fprintf(stderr, _("debug: called ptouch_finalize() with NULL ptdev\n"));
+		return -1;
+	}
+
 	char cmd_eject[]="\x1a"; /* Print command with feeding */
 	char cmd_chain[]="\x0c"; /* Print command (no cut) */
 
@@ -320,6 +341,11 @@ int ptouch_getstatus(ptouch_dev ptdev)
 	uint8_t buf[32] = {};
 	int i, r, tx=0, tries=0;
 	struct timespec w;
+
+	if (!ptdev) {
+		fprintf(stderr, _("debug: called ptouch_getstatus() with NULL ptdev\n"));
+		return -1;
+	}
 
 	ptouch_send(ptdev, (uint8_t *)cmd, strlen(cmd));
 	while (tx == 0) {
@@ -372,11 +398,19 @@ int ptouch_getstatus(ptouch_dev ptdev)
 
 size_t ptouch_get_tape_width(ptouch_dev ptdev)
 {
+	if (!ptdev) {
+		fprintf(stderr, _("debug: called ptouch_get_tape_width() with NULL ptdev\n"));
+		return 0;
+	}
 	return ptdev->tape_width_px;
 }
 
 size_t ptouch_get_max_width(ptouch_dev ptdev)
 {
+	if (!ptdev) {
+		fprintf(stderr, _("debug: called ptouch_get_max_width() with NULL ptdev\n"));
+		return 0;
+	}
 	return ptdev->devinfo->max_px;
 }
 
@@ -385,6 +419,10 @@ int ptouch_sendraster(ptouch_dev ptdev, uint8_t *data, size_t len)
 	uint8_t buf[64];
 	int rc;
 
+	if (!ptdev) {
+		fprintf(stderr, _("debug: called ptouch_sendraster() with NULL ptdev\n"));
+		return -1;
+	}
 	if (len > (size_t)(ptdev->devinfo->max_px / 8)) {
 		return -1;
 	}

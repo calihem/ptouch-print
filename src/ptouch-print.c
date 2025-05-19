@@ -58,7 +58,7 @@ int verbose = 0;
 int fontsize = 0;
 bool debug = false;
 bool chain = false;
-int forced_print_width = 0;
+int forced_tape_width = 0;
 
 /* --------------------------------------------------------------------
    -------------------------------------------------------------------- */
@@ -473,7 +473,7 @@ int parse_args(int argc, char **argv)
 			}
 		} else if (strcmp(&argv[i][1], "-force-tape-width") == 0) {
 			if (i+1 < argc) {
-				forced_print_width = strtol(argv[++i], NULL, 10);
+				forced_tape_width = strtol(argv[++i], NULL, 10);
 			} else {
 				usage(argv[0]);
 			}
@@ -520,15 +520,15 @@ int parse_args(int argc, char **argv)
 			usage(argv[0]);
 		}
 	}
-	if (forced_print_width && !save_png) {
-		forced_print_width = 0;
+	if (forced_tape_width && !save_png) {
+		forced_tape_width = 0;
 	}
 	return i;
 }
 
 int main(int argc, char *argv[])
 {
-	int i, lines = 0, copies = 1, print_width = 0;
+	int lines = 0, copies = 1, print_width = 0;
 	char *line[MAX_LINES];
 	gdImage *im = NULL;
 	gdImage *out = NULL;
@@ -537,13 +537,11 @@ int main(int argc, char *argv[])
 	setlocale(LC_ALL, "");
 	bindtextdomain("ptouch-print", "/usr/share/locale/");
 	textdomain("ptouch-print");
-	i = parse_args(argc, argv);
+	int i = parse_args(argc, argv);
 	if (i != argc) {
 		usage(argv[0]);
 	}
-	int tape_width = ptouch_get_tape_width(ptdev);
-	int max_print_width = ptouch_get_max_width(ptdev);
-	if (!forced_print_width) {
+	if (!forced_tape_width) {
 		if ((ptouch_open(&ptdev)) < 0) {
 			return 5;
 		}
@@ -554,13 +552,14 @@ int main(int argc, char *argv[])
 			printf(_("ptouch_getstatus() failed\n"));
 			return 1;
 		}
-		print_width = tape_width;
-	} else {
-		print_width = forced_print_width;
-	}
-	// do not try to print more pixels than printhead has
-	if (print_width > max_print_width) {
-		print_width = max_print_width;
+		print_width = ptouch_get_tape_width(ptdev);
+		int max_print_width = ptouch_get_max_width(ptdev);
+		// do not try to print more pixels than printhead has
+		if (print_width > max_print_width) {
+			print_width = max_print_width;
+		}
+	} else {	// --forced_tape_width together with --writepng
+		print_width = forced_tape_width;
 	}
 	for (i = 1; i < argc; ++i) {
 		if (*argv[i] != '-') {
@@ -579,7 +578,7 @@ int main(int argc, char *argv[])
 				usage(argv[0]);
 			}
 		} else if (strcmp(&argv[i][1], "-force-tape-width") == 0) {
-			if (forced_print_width && save_png) {
+			if (forced_tape_width && save_png) {
 				++i;
 				continue;
 			} else {
@@ -589,8 +588,8 @@ int main(int argc, char *argv[])
 			i++;
 			continue;
 		} else if (strcmp(&argv[i][1], "-info") == 0) {
-			printf(_("maximum printing width for this printer is %ipx\n"), max_print_width);
-			printf(_("maximum printing width for this tape is %ipx\n"), tape_width);
+			printf(_("maximum printing width for this printer is %ldpx\n"), ptouch_get_max_width(ptdev));
+			printf(_("maximum printing width for this tape is %ldpx\n"), ptouch_get_tape_width(ptdev));
 			printf("media type = %02x (%s)\n", ptdev->status->media_type, pt_mediatype(ptdev->status->media_type));
 			printf("media width = %d mm\n", ptdev->status->media_width);
 			printf("tape color = %02x (%s)\n", ptdev->status->tape_color, pt_tapecolor(ptdev->status->tape_color));
@@ -663,7 +662,7 @@ int main(int argc, char *argv[])
 	if (im != NULL) {
 		gdImageDestroy(im);
 	}
-	if (!forced_print_width) {
+	if (!forced_tape_width) {
 		ptouch_close(ptdev);
 	}
 	libusb_exit(NULL);
