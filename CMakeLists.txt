@@ -71,6 +71,6 @@ install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/ptouch-print.1 DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
 
 if(EXISTS /etc/udev/rules.d)
-	install(FILES udev/90-usb-ptouch-permissions.rules DESTINATION /etc/udev/rules.d)
+	install(FILES udev/20-usb-ptouch-permissions.rules DESTINATION /etc/udev/rules.d)
 	install(CODE "execute_process(COMMAND udevadm control --reload-rules)")
 endif()
