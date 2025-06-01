@@ -45,6 +45,7 @@ struct _pt_tape_info tape_info[]= {
 };
 
 struct _pt_dev_info ptdevs[] = {
+	{0x04f9, 0x2001, "PT-9200DX", 384, 360, FLAG_RASTER_PACKBITS|FLAG_HAS_PRECUT},	/* 360dpi, maximum 128px, max tape width 36mm */
 	{0x04f9, 0x2004, "PT-2300", 112, 180, FLAG_RASTER_PACKBITS|FLAG_HAS_PRECUT},	/* 180dpi, 112px printhead */
 	{0x04f9, 0x2007, "PT-2420PC", 128, 180, FLAG_RASTER_PACKBITS},	/* 180dpi, 128px, maximum tape width 24mm, must send TIFF compressed pixel data */
 	{0x04f9, 0x2011, "PT-2450PC", 128, 180, FLAG_RASTER_PACKBITS},
