@@ -81,6 +81,11 @@ struct _pt_dev_info ptdevs[] = {
 	{0x04f9, 0x20e1, "PT-D610BT", 128, 180, FLAG_P700_INIT|FLAG_USE_INFO_CMD|FLAG_HAS_PRECUT|FLAG_D460BT_MAGIC},
 	//{0x04f9, 0x200d, "PT-3600", 384, 360, FLAG_RASTER_PACKBITS},
 	{0x04f9, 0x20af, "PT-P710BT", 128, 180, FLAG_RASTER_PACKBITS|FLAG_HAS_PRECUT},
+	/* added by Christian, PT-E310BT (aka PT-E310BTVP) requires these flags, otherwise not returning from libusb_bulk_transfer-call */
+	/* printhead 128px, 180 dpi resolution */
+	/* 3,5/6/9/12/18 mm TZe Tapes, 12mm and 18mm tested */
+	/* 5,2/9/11,2 mm HSe heat shrink tubes not tested, probably requiring extension of struct _pt_tape_info */
+        {0x04f9, 0x2201, "PT-E310BT", 128, 180, FLAG_P700_INIT|FLAG_USE_INFO_CMD|FLAG_D460BT_MAGIC},
 	{0,0,"",0,0,0}
 };
 
