@@ -17,6 +17,7 @@
 	Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 */
 
+#include <libintl.h>	/* gettext(), ngettext() */
 #include <stdio.h>	/* printf() */
 #include <stdlib.h>	/* exit(), malloc() */
 #include <stdbool.h>
@@ -29,7 +30,6 @@
 #include <locale.h>	/* LC_ALL */
 
 #include "version.h"
-#include "gettext.h"	/* gettext(), ngettext() */
 #include "ptouch.h"
 
 #define _(s) gettext(s)

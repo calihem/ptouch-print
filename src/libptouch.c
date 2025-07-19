@@ -19,6 +19,7 @@
 
 #define _POSIX_C_SOURCE	199309L	/* needed for nanosleep() when using -std=c11 */
 
+#include <libintl.h>	/* gettext(), ngettext() */
 #include <stdio.h>
 #include <stdlib.h>	/* malloc() */
 #include <string.h>	/* memcmp() */
@@ -27,7 +28,6 @@
 #include <fcntl.h>	/* open() */
 #include <time.h>	/* nanosleep(), struct timespec */
 
-#include "gettext.h"	/* gettext(), ngettext() */
 #include "ptouch.h"
 
 #define _(s) gettext(s)

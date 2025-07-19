@@ -37,7 +37,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 
 target_sources(${PROJECT_NAME} PRIVATE
 	include/ptouch.h
-	include/gettext.h
 	src/libptouch.c
 	src/ptouch-print.c
 )
