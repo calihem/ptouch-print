@@ -17,6 +17,27 @@ find_package(Intl REQUIRED)
 
 pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
 
+# Configure gettext
+if(Gettext_FOUND)
+	# read available languages from LINGUAS file while ignoring comments
+	file(STRINGS po/LINGUAS LINGUAS REGEX "^[^#]")
+
+	foreach(language IN LISTS LINGUAS)
+		gettext_process_po_files(
+			${language}
+			ALL
+			PO_FILES ${CMAKE_SOURCE_DIR}/po/${language}.po
+		)
+	endforeach()
+
+	foreach(language IN LISTS LINGUAS)
+		install(
+			FILES "${CMAKE_CURRENT_BINARY_DIR}/${language}.gmo"
+			DESTINATION "${CMAKE_INSTALL_LOCALEDIR}/${language}/LC_MESSAGES"
+			RENAME "${PROJECT_NAME}.mo")
+	endforeach()
+endif()
+
 # Configure project executable
 add_executable(${PROJECT_NAME})
 

@@ -535,7 +535,11 @@ int main(int argc, char *argv[])
 	ptouch_dev ptdev = NULL;
 
 	setlocale(LC_ALL, "");
-	bindtextdomain("ptouch-print", "/usr/share/locale/");
+	const char *textdomain_dir = getenv("TEXTDOMAINDIR");
+	if(!textdomain_dir) {
+		textdomain_dir ="/usr/share/locale/";
+	}
+	bindtextdomain("ptouch-print", textdomain_dir);
 	textdomain("ptouch-print");
 	int i = parse_args(argc, argv);
 	if (i != argc) {
