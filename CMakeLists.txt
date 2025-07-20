@@ -19,6 +19,38 @@ pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
 
 # Configure gettext
 if(Gettext_FOUND)
+	# generate pot files using xgettext
+	find_program(GETTEXT_XGETTEXT_EXECUTABLE xgettext)
+	if(GETTEXT_XGETTEXT_EXECUTABLE)
+		add_custom_target(
+			pot-update
+			ALL
+			COMMENT "Updating pot file"
+			DEPENDS ${CMAKE_SOURCE_DIR}/po/ptouch.pot
+		)
+		add_dependencies(pot-update git-version)
+
+		file(GLOB_RECURSE C_FILES RELATIVE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/src/*.c)
+		file(STRINGS ${CMAKE_BINARY_DIR}/version.h VERSION_LINE REGEX "VERSION")
+		string(REGEX MATCH "\".*\"$" PVERSION ${VERSION_LINE})
+		add_custom_command(
+			TARGET pot-update
+			PRE_BUILD
+			COMMAND ${GETTEXT_XGETTEXT_EXECUTABLE}
+				--keyword=_
+				--keyword=N_
+				--force-po
+				--package-name=${PROJECT_NAME}
+				--package-version=${PVERSION}
+				--copyright-holder="Dominic Radermacher <dominic@familie-radermacher.ch>"
+				--msgid-bugs-address="dominic@familie-radermacher.ch"
+				--output ${CMAKE_SOURCE_DIR}/po/ptouch.pot
+				${C_FILES}
+			WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		)
+	endif()
+
+
 	# read available languages from LINGUAS file while ignoring comments
 	file(STRINGS po/LINGUAS LINGUAS REGEX "^[^#]")
 
@@ -34,7 +66,8 @@ if(Gettext_FOUND)
 		install(
 			FILES "${CMAKE_CURRENT_BINARY_DIR}/${language}.gmo"
 			DESTINATION "${CMAKE_INSTALL_LOCALEDIR}/${language}/LC_MESSAGES"
-			RENAME "${PROJECT_NAME}.mo")
+			RENAME "${PROJECT_NAME}.mo"
+		)
 	endforeach()
 endif()
 
