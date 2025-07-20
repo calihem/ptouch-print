@@ -17,82 +17,6 @@ find_package(Intl REQUIRED)
 
 pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
 
-# Configure gettext
-if(Gettext_FOUND)
-	# generate pot files using xgettext
-	find_program(GETTEXT_XGETTEXT_EXECUTABLE xgettext)
-	if(GETTEXT_XGETTEXT_EXECUTABLE)
-		add_custom_target(
-			pot-update
-			ALL
-			DEPENDS ${CMAKE_SOURCE_DIR}/po/ptouch.pot
-		)
-		add_dependencies(pot-update git-version)
-
-		file(GLOB_RECURSE C_FILES RELATIVE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/src/*.c)
-		file(STRINGS ${CMAKE_BINARY_DIR}/version.h VERSION_LINE REGEX "VERSION")
-		string(REGEX MATCH "\".*\"$" PVERSION ${VERSION_LINE})
-		add_custom_command(
-			TARGET pot-update
-			PRE_BUILD
-			COMMAND ${GETTEXT_XGETTEXT_EXECUTABLE}
-				--keyword=_
-				--keyword=N_
-				--force-po
-				--package-name=${PROJECT_NAME}
-				--package-version=${PVERSION}
-				--copyright-holder="Dominic Radermacher <dominic@familie-radermacher.ch>"
-				--msgid-bugs-address="dominic@familie-radermacher.ch"
-				--output ${CMAKE_SOURCE_DIR}/po/ptouch.pot
-				${C_FILES}
-			WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-		)
-	endif()
-
-	# merge po files
-	find_program(GETTEXT_MSGMERGE_EXECUTABLE, msgmerge)
-	if(GETTEXT_MSGMERGE_EXECUTABLE)
-		add_custom_target(
-			po-merge
-			ALL
-			DEPENDS ${CMAKE_SOURCE_DIR}/po/ptouch.pot
-		)
-		add_dependencies(po-merge pot-update)
-
-		file(GLOB PO_FILES ${CMAKE_SOURCE_DIR}/po/*.po)
-		foreach(PO_FILE IN ITEMS ${PO_FILES})
-			add_custom_command(
-				TARGET po-merge
-				PRE_BUILD
-				COMMAND ${GETTEXT_MSGMERGE_EXECUTABLE}
-					--update
-					--quiet
-					${PO_FILE}
-					${CMAKE_SOURCE_DIR}/po/ptouch.pot
-			)
-		endforeach()
-	endif()
-
-	# read available languages from LINGUAS file while ignoring comments
-	file(STRINGS po/LINGUAS LINGUAS REGEX "^[^#]")
-
-	foreach(language IN LISTS LINGUAS)
-		gettext_process_po_files(
-			${language}
-			ALL
-			PO_FILES ${CMAKE_SOURCE_DIR}/po/${language}.po
-		)
-	endforeach()
-
-	foreach(language IN LISTS LINGUAS)
-		install(
-			FILES "${CMAKE_CURRENT_BINARY_DIR}/${language}.gmo"
-			DESTINATION "${CMAKE_INSTALL_LOCALEDIR}/${language}/LC_MESSAGES"
-			RENAME "${PROJECT_NAME}.mo"
-		)
-	endforeach()
-endif()
-
 # Configure project executable
 add_executable(${PROJECT_NAME})
 
@@ -140,6 +64,8 @@ target_compile_options(${PROJECT_NAME} PUBLIC
 add_custom_target(git-version ALL
 	${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/gitversion.cmake
 )
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gettext.cmake)
 
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 
