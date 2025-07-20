@@ -25,7 +25,6 @@ if(Gettext_FOUND)
 		add_custom_target(
 			pot-update
 			ALL
-			COMMENT "Updating pot file"
 			DEPENDS ${CMAKE_SOURCE_DIR}/po/ptouch.pot
 		)
 		add_dependencies(pot-update git-version)
@@ -50,6 +49,29 @@ if(Gettext_FOUND)
 		)
 	endif()
 
+	# merge po files
+	find_program(GETTEXT_MSGMERGE_EXECUTABLE, msgmerge)
+	if(GETTEXT_MSGMERGE_EXECUTABLE)
+		add_custom_target(
+			po-merge
+			ALL
+			DEPENDS ${CMAKE_SOURCE_DIR}/po/ptouch.pot
+		)
+		add_dependencies(po-merge pot-update)
+
+		file(GLOB PO_FILES ${CMAKE_SOURCE_DIR}/po/*.po)
+		foreach(PO_FILE IN ITEMS ${PO_FILES})
+			add_custom_command(
+				TARGET po-merge
+				PRE_BUILD
+				COMMAND ${GETTEXT_MSGMERGE_EXECUTABLE}
+					--update
+					--quiet
+					${PO_FILE}
+					${CMAKE_SOURCE_DIR}/po/ptouch.pot
+			)
+		endforeach()
+	endif()
 
 	# read available languages from LINGUAS file while ignoring comments
 	file(STRINGS po/LINGUAS LINGUAS REGEX "^[^#]")
