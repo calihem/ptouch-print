@@ -56,7 +56,8 @@ msgstr ""
 
 #: src/libptouch.c:158
 #, c-format
-msgid "No P-Touch printer found on USB (remember to put switch to position E)\n"
+msgid ""
+"No P-Touch printer found on USB (remember to put switch to position E)\n"
 msgstr "Kein P-Ptouch Drucker am USB gefunden (Schalter muss auf E stehen)\n"
 
 #: src/libptouch.c:178
@@ -66,7 +67,6 @@ msgstr ""
 
 #: src/libptouch.c:182
 #, fuzzy, c-format
-#| msgid "read error: got %i instead of 32 bytes\n"
 msgid "write error: could send only %i of %ld bytes\n"
 msgstr "Lesefehler: %i anstatt 32 bytes empfangen\n"
 
@@ -152,7 +152,6 @@ msgstr ""
 
 #: src/ptouch-print.c:133
 #, fuzzy, c-format
-#| msgid "ptouch_send() failed\n"
 msgid "ptouch_sendraster() failed\n"
 msgstr "ptouch_send() fehlgeschlagen\n"
 

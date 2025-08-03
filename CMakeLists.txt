@@ -37,7 +37,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 
 target_sources(${PROJECT_NAME} PRIVATE
 	include/ptouch.h
-	include/gettext.h
 	src/libptouch.c
 	src/ptouch-print.c
 )
@@ -65,6 +64,8 @@ target_compile_options(${PROJECT_NAME} PUBLIC
 add_custom_target(git-version ALL
 	${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/gitversion.cmake
 )
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gettext.cmake)
 
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 
