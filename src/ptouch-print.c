@@ -17,6 +17,7 @@
 	Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 */
 
+#include <argp.h>
 #include <stdio.h>	/* printf() */
 #include <stdlib.h>	/* exit(), malloc() */
 #include <stdbool.h>
@@ -36,6 +37,29 @@
 
 #define MAX_LINES 4	/* maybe this should depend on tape size */
 
+#define P_NAME "ptouch-print"
+
+struct arguments {
+	bool chain;
+	int copies;
+	bool debug;
+	bool info;
+	char *font_file;
+	int font_size;
+	int forced_tape_width;
+	char *save_png;
+	int verbose;
+};
+
+typedef enum { JOB_CUTMARK, JOB_IMAGE, JOB_PAD, JOB_TEXT, JOB_UNDEFINED } job_type_t;
+
+typedef struct job {
+	job_type_t type;
+	int n;
+	char *lines[MAX_LINES];
+	struct job *next;
+} job_t;
+
 gdImage *image_load(const char *file);
 void rasterline_setpixel(uint8_t* rasterline, size_t size, int pixel);
 int get_baselineoffset(char *text, char *font, int fsz);
@@ -47,18 +71,56 @@ gdImage *img_append(gdImage *in_1, gdImage *in_2);
 gdImage *img_cutmark(int print_width);
 gdImage *render_text(char *font, char *line[], int lines, int print_width);
 void unsupported_printer(ptouch_dev ptdev);
-void usage(char *progname);
-int parse_args(int argc, char **argv);
+void add_job(job_type_t type, int n, char *line);
+static error_t parse_opt(int key, char *arg, struct argp_state *state);
 
-// char *font_file = "/usr/share/fonts/TTF/Ubuntu-M.ttf";
-// char *font_file = "Ubuntu:medium";
-char *font_file = "DejaVuSans";
-char *save_png = NULL;
-int verbose = 0;
-int fontsize = 0;
-bool debug = false;
-bool chain = false;
-int forced_tape_width = 0;
+const char *argp_program_version = P_NAME " " VERSION;
+const char *argp_program_bug_address = "Dominic Radermacher <dominic@familie-radermacher.ch>";
+static char doc[] = "ptouch-print is a command line tool to print labels on Brother P-Touch printers on Linux.";
+static char args_doc[] = "";
+
+static struct argp_option options[] = {
+	// name, key, arg, flags, doc, group
+	{ 0, 0, 0, 0, _("options:"), 1},
+	{ "debug", 1, 0, 0, _("Enable debug output"), 1},
+	{ "font", 2, "<file>", 0, _("Use font <file> or <name>"), 1},
+	{ "fontsize", 3, "<size>", 0, _("Manually set font size"), 1},
+	{ "writepng", 4, "<file>", 0, _("Instead of printing, write output to png <file>"), 1},
+	{ "force-tape-width", 5, "<px>", 0, _("Set tape width in pixels, use together with --writepng without a printer connected"), 1},
+	{ "copies", 6, "<number>", 0, _("Sets the number of identical prints"), 1},
+
+	{ 0, 0, 0, 0, _("print commands:"), 2},
+	{ "image", 'i', "<file>", 0, _("Print the given image which must be a 2 color (black/white) png"), 2},
+	{ "text", 't', "<text>", 0, _("Print line of <text>. If the text contains spaces, use quotation marks taround it"), 2},
+	{ "cutmark", 'c', 0, 0, _("Print a mark where the tape should be cut"), 2},
+	{ "pad", 'p', "<n>", 0, _("Add n pixels padding (blank tape)"), 2},
+	{ "chain", 10, 0, 0, _("Skip final feed of label and any automatic cut"), 2},
+	{ "newline", 'n', "<line>", 0, "Add 1-4 lines for multiline text", 2},
+	
+	{ 0, 0, 0, 0, _("other commands:"), 3},
+	{ "info", 20, 0, 0, _("Show info about detected tape"), 3},
+	{ "list-supported", 21, 0, 0, _("Show printers supported by this version"), 3},
+	{ 0 }
+};
+
+static struct argp argp = { options, parse_opt, args_doc, doc, 0, 0, 0 };
+
+struct arguments arguments = {
+	.chain =false,
+	.copies = 1,
+	.debug = false,
+	.info = false,
+	//.font_file = "/usr/share/fonts/TTF/Ubuntu-M.ttf",
+	//.font_file = "Ubuntu:medium",
+	.font_file = "DejaVuSans",
+	.font_size = 0,
+	.forced_tape_width = 0,
+	.save_png = NULL,
+	.verbose = 0
+};
+
+job_t *jobs = NULL;
+job_t *last_added_job = NULL;
 
 /* --------------------------------------------------------------------
    -------------------------------------------------------------------- */
@@ -95,7 +157,7 @@ int print_img(ptouch_dev ptdev, gdImage *im, int chain)
 	int offset = ((int)max_pixels / 2) - (gdImageSY(im)/2);	/* always print centered */
 	printf("max_pixels=%ld, offset=%d\n", max_pixels, offset);
 	if ((ptdev->devinfo->flags & FLAG_RASTER_PACKBITS) == FLAG_RASTER_PACKBITS) {
-		if (debug) {
+		if (arguments.debug) {
 			printf("enable PackBits mode\n");
 		}
 		ptouch_enable_packbits(ptdev);
@@ -106,25 +168,25 @@ int print_img(ptouch_dev ptdev, gdImage *im, int chain)
 	}
 	if ((ptdev->devinfo->flags & FLAG_USE_INFO_CMD) == FLAG_USE_INFO_CMD) {
 		ptouch_info_cmd(ptdev, gdImageSX(im));
-		if (debug) {
+		if (arguments.debug) {
 			printf(_("send print information command\n"));
 		}
 	}
 	if ((ptdev->devinfo->flags & FLAG_D460BT_MAGIC) == FLAG_D460BT_MAGIC) {
 		if (chain) {
 			ptouch_send_d460bt_chain(ptdev);
-			if (debug) {
+			if (arguments.debug) {
 				printf(_("send PT-D460BT chain commands\n"));
 			}
 		}
 		ptouch_send_d460bt_magic(ptdev);
-		if (debug) {
+		if (arguments.debug) {
 			printf(_("send PT-D460BT magic commands\n"));
 		}
 	}
 	if ((ptdev->devinfo->flags & FLAG_HAS_PRECUT) == FLAG_HAS_PRECUT) {
 		ptouch_send_precut_cmd(ptdev, 1);
-		if (debug) {
+		if (arguments.debug) {
 			printf(_("send precut command\n"));
 		}
 	}
@@ -206,7 +268,7 @@ int get_baselineoffset(char *text, char *font, int fsz)
 	int o_offset = brect[1];
 	gdImageStringFT(NULL, &brect[0], -1, font, fsz, 0.0, 0, 0, text);
 	int text_offset = brect[1];
-	if (debug) {
+	if (arguments.debug) {
 		printf(_("debug: o baseline offset - %d\n"), o_offset);
 		printf(_("debug: text baseline offset - %d\n"), text_offset);
 	}
@@ -266,14 +328,14 @@ gdImage *render_text(char *font, char *line[], int lines, int print_width)
 	char *p;
 	gdImage *im = NULL;
 
-	if (debug) {
+	if (arguments.debug) {
 		printf(_("render_text(): %i lines, font = '%s'\n"), lines, font);
 	}
 	if (gdFTUseFontConfig(1) != GD_TRUE) {
 		printf(_("warning: font config not available\n"));
 	}
-	if (fontsize > 0) {
-		fsz = fontsize;
+	if (arguments.font_size > 0) {
+		fsz = arguments.font_size;
 		printf(_("setting font size=%i\n"), fsz);
 	} else {
 		for (i = 0; i < lines; ++i) {
@@ -288,7 +350,7 @@ gdImage *render_text(char *font, char *line[], int lines, int print_width)
 		printf(_("choosing font size=%i\n"), fsz);
 	}
 	for(i = 0; i < lines; ++i) {
-		tmp = needed_width(line[i], font_file, fsz);
+		tmp = needed_width(line[i], arguments.font_file, fsz);
 		if (tmp > x) {
 			x = tmp;
 		}
@@ -309,7 +371,7 @@ gdImage *render_text(char *font, char *line[], int lines, int print_width)
 			max_height = lineheight;
 		}
 	}
-	if (debug) {
+	if (arguments.debug) {
 		printf("debug: needed (max) height is %ipx\n", max_height);
 	}
 	if ((max_height * lines) > print_width) {
@@ -320,14 +382,14 @@ gdImage *render_text(char *font, char *line[], int lines, int print_width)
 	int unused_px = print_width - (max_height * lines);
 	/* now render lines */
 	for (i = 0; i < lines; ++i) {
-		int ofs = get_baselineoffset(line[i], font_file, fsz);
+		int ofs = get_baselineoffset(line[i], arguments.font_file, fsz);
 		//int pos = ((i)*(print_width/(lines)))+(max_height)-ofs-1;
 		int pos = ((i)*(print_width/(lines)))+(max_height)-ofs;
 		pos += (unused_px/lines) / 2;
-		if (debug) {
+		if (arguments.debug) {
 			printf("debug: line %i pos=%i ofs=%i\n", i+1, pos, ofs);
 		}
-		int off_x = offset_x(line[i], font_file, fsz);
+		int off_x = offset_x(line[i], arguments.font_file, fsz);
 		if ((p = gdImageStringFT(im, &brect[0], -black, font, fsz, 0.0, off_x, pos, line[i])) != NULL) {
 			printf(_("error in gdImageStringFT: %s\n"), p);
 		}
@@ -363,18 +425,18 @@ gdImage *img_append(gdImage *in_1, gdImage *in_2)
 	}
 	gdImageColorAllocate(out, 255, 255, 255);
 	gdImageColorAllocate(out, 0, 0, 0);
-	if (debug) {
+	if (arguments.debug) {
 		printf("debug: created new img with size %d * %d\n", length, width);
 	}
 	if (in_1 != NULL) {
 		gdImageCopy(out, in_1, 0, 0, 0, 0, gdImageSX(in_1), gdImageSY(in_1));
-		if (debug) {
+		if (arguments.debug) {
 			printf("debug: copied part 1\n");
 		}
 	}
 	if (in_2 != NULL) {
 		gdImageCopy(out, in_2, i_1_x, 0, 0, 0, gdImageSX(in_2), gdImageSY(in_2));
-		if (debug) {
+		if (arguments.debug) {
 			printf("copied part 2\n");
 		}
 	}
@@ -418,118 +480,112 @@ gdImage *img_padding(int print_width, int length)
 	return out;
 }
 
-void usage(char *progname)
+void add_job(job_type_t type, int n, char *line)
 {
-	printf("usage: %s [options] <print-command(s)>\n", progname);
-	printf("options:\n");
-	printf("\t--debug\t\t\tenable debug output\n");
-	printf("\t--font <file>\t\tuse font <file> or <name>\n");
-	printf("\t--fontsize <size>\tManually set fontsize\n");
-	printf("\t--writepng <file>\tinstead of printing, write output to png file\n");
-	printf("\t--force-tape-width <px>\tSet tape width in pixels, use together with\n");
-	printf("\t\t\t\t--writepng without a printer connected.\n");
-	printf("\t--copies <number>\tSets the number of identical prints\n");
-	printf("print commands:\n");
-	printf("\t--image <file>\t\tprint the given image which must be a 2 color\n");
-	printf("\t\t\t\t(black/white) png\n");
-	printf("\t--text <text>\t\tPrint 1-4 lines of text.\n");
-	printf("\t\t\t\tIf the text contains spaces, use quotation marks\n\t\t\t\taround it.\n");
-	printf("\t--cutmark\t\tPrint a mark where the tape should be cut\n");
-	printf("\t--pad <n>\t\tAdd n pixels padding (blank tape)\n");
-	printf("\t--chain\t\t\tSkip final feed of label and any automatic cut\n");
-	printf("other commands:\n");
-	printf("\t--version\t\tshow version info (required for bug report)\n");
-	printf("\t--info\t\t\tshow info about detected tape\n");
-	printf("\t--list-supported\tshow printers supported by this version\n");
-	exit(1);
+	job_t *new_job = (job_t*)malloc(sizeof(job_t));
+	if(!new_job) {
+		fprintf(stderr, "Memory allocation failed\n"); 
+		return;
+	}
+
+	new_job->type = type;
+	if(type == JOB_TEXT && n > MAX_LINES) {
+		n = MAX_LINES;
+	}
+	new_job->n = n;
+	new_job->lines[0] = line;
+	for(int i=1; i<MAX_LINES; i++)
+		new_job->lines[i] = NULL;
+	new_job->next = NULL;
+
+	if(!last_added_job) { // just created the first job
+		jobs = last_added_job = new_job;
+		return;
+	}
+
+	last_added_job->next = new_job;
+	last_added_job = new_job;
 }
 
-/* here we don't print anything, but just try to catch syntax errors */
-int parse_args(int argc, char **argv)
+static error_t parse_opt(int key, char *arg, struct argp_state *state)
 {
-	int lines, i;
+	struct arguments *arguments = (struct arguments *)state->input;
 
-	for (i = 1; i < argc; ++i) {
-		if (*argv[i] != '-') {
+	switch (key) {
+		case 1: // debug
+			arguments->debug = true;
 			break;
-		}
-		if (strcmp(&argv[i][1], "-font") == 0) {
-			if (i+1 < argc) {
-				font_file = argv[++i];
-			} else {
-				usage(argv[0]);
+		case 2: // font
+			arguments->font_file = arg;
+			break;
+		case 3: // fontsize
+			arguments->font_size = strtol(arg, NULL, 10);
+			break;
+		case 4: // writepng
+			arguments->save_png = arg;
+			break;
+		case 5: // force-tape-width
+			arguments->forced_tape_width = strtol(arg, NULL, 10);
+			break;
+		case 6: // copies
+			arguments->copies = strtol(arg, NULL, 10);
+			break;
+		case 'i': // image
+			add_job(JOB_IMAGE, 1, arg);
+			 break;
+		case 't': // text
+			add_job(JOB_TEXT, 1, arg);
+			 break;
+		case 'c': // cutmark
+			add_job(JOB_CUTMARK, 0, NULL);
+			break;
+		case 'p': // pad
+			add_job(JOB_PAD, atoi(arg), NULL);
+			break;
+		case 10: // chain
+			arguments->chain = true;
+			break;
+		case 'n': // newline
+			if(!last_added_job || last_added_job->type != JOB_TEXT) {
+				add_job(JOB_TEXT, 1, arg);
+				break;
 			}
-		} else if (strcmp(&argv[i][1], "-fontsize") == 0) {
-			if (i+1 < argc) {
-				++i;
-			} else {
-				usage(argv[0]);
+
+			if(last_added_job->n >= MAX_LINES) { // max number of lines reached
+				argp_failure(state, 1, EINVAL, _("Only up to %d lines are supported"), MAX_LINES);
+				break;
 			}
-		} else if (strcmp(&argv[i][1], "-writepng") == 0) {
-			if (i+1 < argc) {
-				save_png = argv[++i];
-			} else {
-				usage(argv[0]);
-			}
-		} else if (strcmp(&argv[i][1], "-force-tape-width") == 0) {
-			if (i+1 < argc) {
-				forced_tape_width = strtol(argv[++i], NULL, 10);
-			} else {
-				usage(argv[0]);
-			}
-		} else if (strcmp(&argv[i][1], "-cutmark") == 0) {
-			continue;	/* not done here */
-		} else if (strcmp(&argv[i][1], "-chain") == 0) {
-			chain = true;
-		} else if (strcmp(&argv[i][1], "-debug") == 0) {
-			debug = true;
-		} else if (strcmp(&argv[i][1], "-info") == 0) {
-			continue;	/* not done here */
-		} else if (strcmp(&argv[i][1], "-copies") == 0) {
-			if (i+1 < argc) {
-				++i;
-			} else {
-				usage(argv[0]);
-			}
-		} else if (strcmp(&argv[i][1], "-image") == 0) {
-			if (i+1 < argc) {
-				++i;
-			} else {
-				usage(argv[0]);
-			}
-		} else if (strcmp(&argv[i][1], "-pad") == 0) {
-			if (i+1 < argc) {
-				++i;
-			} else {
-				usage(argv[0]);
-			}
-		} else if (strcmp(&argv[i][1], "-text") == 0) {
-			for (lines = 0; (lines < MAX_LINES) && (i < argc); ++lines) {
-				if ((i+1 >= argc) || (argv[i+1][0] == '-')) {
-					break;
-				}
-				++i;
-			}
-		} else if (strcmp(&argv[i][1], "-version") == 0) {
-			printf(_("ptouch-print version %s by Dominic Radermacher\n"), VERSION);
-			exit(0);
-		} else if (strcmp(&argv[i][1], "-list-supported") == 0) {
+
+			last_added_job->lines[last_added_job->n++] = arg;
+			break;
+		case 20: // info
+			arguments->info = true;
+			break;
+		case 21: // list-supported
 			ptouch_list_supported();
 			exit(0);
-		} else {
-			usage(argv[0]);
-		}
+		case ARGP_KEY_ARG:
+			argp_failure(state, 1, E2BIG, _("No arguments supported"));
+			break;
+		case ARGP_KEY_END:
+			// final argument validation
+			if (arguments->forced_tape_width && !arguments->save_png) {
+				argp_failure(state, 1, ENOTSUP, _("Option --writepng missing"));
+			}
+			if (arguments->forced_tape_width && arguments->info) {
+				argp_failure(state, 1, ENOTSUP, _("Options --force_tape_width and --info can't be used together"));
+			}
+			break;
+		default:
+			return ARGP_ERR_UNKNOWN;
 	}
-	if (forced_tape_width && !save_png) {
-		forced_tape_width = 0;
-	}
-	return i;
+	
+	return 0;
 }
 
 int main(int argc, char *argv[])
 {
-	int lines = 0, copies = 1, print_width = 0;
-	char *line[MAX_LINES];
+	int print_width = 0;
 	gdImage *im = NULL;
 	gdImage *out = NULL;
 	ptouch_dev ptdev = NULL;
@@ -539,13 +595,12 @@ int main(int argc, char *argv[])
 	if (!textdomain_dir) {
 		textdomain_dir = "/usr/share/locale/";
 	}
-	bindtextdomain("ptouch-print", textdomain_dir);
-	textdomain("ptouch-print");
-	int i = parse_args(argc, argv);
-	if (i != argc) {
-		usage(argv[0]);
-	}
-	if (!forced_tape_width) {
+	bindtextdomain(P_NAME, "/usr/share/locale/");
+	textdomain(P_NAME);
+
+	argp_parse(&argp, argc, argv, 0, 0, &arguments);
+
+	if (!arguments.forced_tape_width) {
 		if ((ptouch_open(&ptdev)) < 0) {
 			return 5;
 		}
@@ -563,100 +618,84 @@ int main(int argc, char *argv[])
 			print_width = max_print_width;
 		}
 	} else {	// --forced_tape_width together with --writepng
-		print_width = forced_tape_width;
+		print_width = arguments.forced_tape_width;
 	}
-	for (i = 1; i < argc; ++i) {
-		if (*argv[i] != '-') {
-			break;
+
+	if(arguments.info) {
+		printf(_("maximum printing width for this printer is %ldpx\n"), ptouch_get_max_width(ptdev));
+		printf(_("maximum printing width for this tape is %ldpx\n"), ptouch_get_tape_width(ptdev));
+		printf("media type = %02x (%s)\n", ptdev->status->media_type, pt_mediatype(ptdev->status->media_type));
+		printf("media width = %d mm\n", ptdev->status->media_width);
+		printf("tape color = %02x (%s)\n", ptdev->status->tape_color, pt_tapecolor(ptdev->status->tape_color));
+		printf("text color = %02x (%s)\n", ptdev->status->text_color, pt_textcolor(ptdev->status->text_color));
+		printf("error = %04x\n", ptdev->status->error);
+		if (arguments.debug) {
+			ptouch_rawstatus((uint8_t *)ptdev->status);
 		}
-		if (strcmp(&argv[i][1], "-font") == 0) {
-			if (i+1 < argc) {
-				font_file = argv[++i];
-			} else {
-				usage(argv[0]);
-			}
-		} else if (strcmp(&argv[i][1], "-fontsize") == 0) {
-			if (i+1 < argc) {
-				fontsize = strtol(argv[++i], NULL, 10);
-			} else {
-				usage(argv[0]);
-			}
-		} else if (strcmp(&argv[i][1], "-force-tape-width") == 0) {
-			if (forced_tape_width && save_png) {
-				++i;
-				continue;
-			} else {
-				usage(argv[0]);
-			}
-		} else if (strcmp(&argv[i][1], "-writepng") == 0) {
-			i++;
-			continue;
-		} else if (strcmp(&argv[i][1], "-info") == 0) {
-			printf(_("maximum printing width for this printer is %ldpx\n"), ptouch_get_max_width(ptdev));
-			printf(_("maximum printing width for this tape is %ldpx\n"), ptouch_get_tape_width(ptdev));
-			printf("media type = %02x (%s)\n", ptdev->status->media_type, pt_mediatype(ptdev->status->media_type));
-			printf("media width = %d mm\n", ptdev->status->media_width);
-			printf("tape color = %02x (%s)\n", ptdev->status->tape_color, pt_tapecolor(ptdev->status->tape_color));
-			printf("text color = %02x (%s)\n", ptdev->status->text_color, pt_textcolor(ptdev->status->text_color));
-			printf("error = %04x\n", ptdev->status->error);
-			if (debug) {
-				ptouch_rawstatus((uint8_t *)ptdev->status);
-			}
-			exit(0);
-		} else if (strcmp(&argv[i][1], "-image") == 0) {
-			if ((im = image_load(argv[++i])) == NULL) {
-				printf(_("failed to load image file\n"));
-				return 1;
-			}
-			out = img_append(out, im);
-			gdImageDestroy(im);
-			im = NULL;
-		} else if (strcmp(&argv[i][1], "-text") == 0) {
-			for (lines = 0; (lines < MAX_LINES) && (i < argc); ++lines) {
-				if ((i+1 >= argc) || (argv[i+1][0] == '-')) {
-					break;
+		exit(0);
+	}
+
+	// iterate through all print jobs	
+	for(job_t *job = jobs; job != NULL; job = job->next) {
+		if(arguments.debug) {
+			printf("job %p: type=%d | n=%d", job, job->type, job->n);
+			for(int i=0; i<MAX_LINES; i++)
+				printf(" | %s", job->lines[i]);
+			printf(" | next=%p\n", job->next);
+		}
+
+		switch(job->type) {
+			case JOB_IMAGE:
+				if ((im = image_load(job->lines[0])) == NULL) {
+					printf(_("failed to load image file\n"));
+					return 1;
 				}
-				++i;
-				line[lines] = argv[i];
-			}
-			if (lines) {
-				if ((im = render_text(font_file, line, lines, print_width)) == NULL) {
+				out = img_append(out, im);
+				gdImageDestroy(im);
+				im = NULL;
+				break;
+			case JOB_TEXT:
+				if ((im = render_text(arguments.font_file, job->lines, job->n, print_width)) == NULL) {
 					printf(_("could not render text\n"));
 					return 1;
 				}
 				out = img_append(out, im);
 				gdImageDestroy(im);
 				im = NULL;
-			}
-		} else if (strcmp(&argv[i][1], "-cutmark") == 0) {
-			im = img_cutmark(print_width);
-			out = img_append(out, im);
-			gdImageDestroy(im);
-			im = NULL;
-		} else if (strcmp(&argv[i][1], "-pad") == 0) {
-			int length=strtol(argv[++i], NULL, 10);
-			im = img_padding(print_width, length);
-			out = img_append(out, im);
-			gdImageDestroy(im);
-			im = NULL;
-		} else if (strcmp(&argv[i][1], "-chain") == 0) {
-			chain = true;
-		} else if (strcmp(&argv[i][1], "-debug") == 0) {
-			debug = true;
-		} else if (strcmp(&argv[i][1], "-copies") == 0) {
-			copies = strtol(argv[++i], NULL, 10);
-		} else {
-			usage(argv[0]);
+				break;
+			case JOB_CUTMARK:
+				im = img_cutmark(print_width);
+				out = img_append(out, im);
+				gdImageDestroy(im);
+				im = NULL;
+				break;
+			case JOB_PAD:
+				im = img_padding(print_width, job->n);
+				out = img_append(out, im);
+				gdImageDestroy(im);
+				im = NULL;
+				break;
+			default:
+				break;
 		}
 	}
+
+	// clean up job list
+	for(job_t *job = jobs; job != NULL; ) {
+		job_t *next = job->next;
+		free(job);
+		job = next;
+	}
+	jobs = last_added_job = NULL;
+
 	if (out) {
-		if (save_png) {
-			write_png(out, save_png);
+		if (arguments.save_png) {
+			write_png(out, arguments.save_png);
 		} else {
-			for (i = 0; i < copies; ++i) {
-				print_img(ptdev, out, chain);
-				if (ptouch_finalize(ptdev, ( chain || (i < copies-1) ) ) != 0) {
-					printf(_("ptouch_finalize(%d) failed\n"), chain);
+			for (int i = 0; i < arguments.copies; ++i) {
+				print_img(ptdev, out, arguments.chain);
+				if (ptouch_finalize(ptdev, ( arguments.chain || (i < arguments.copies-1) ) ) != 0) {
+					printf(_("ptouch_finalize(%d) failed\n"), arguments.chain);
 					return 2;
 				}
 			}
@@ -666,7 +705,7 @@ int main(int argc, char *argv[])
 	if (im != NULL) {
 		gdImageDestroy(im);
 	}
-	if (!forced_tape_width) {
+	if (!arguments.forced_tape_width) {
 		ptouch_close(ptdev);
 	}
 	libusb_exit(NULL);
