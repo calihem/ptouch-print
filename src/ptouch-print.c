@@ -110,12 +110,6 @@ int print_img(ptouch_dev ptdev, gdImage *im, int chain)
 		}
 	}
 	if ((ptdev->devinfo->flags & FLAG_D460BT_MAGIC) == FLAG_D460BT_MAGIC) {
-		if (chain) {
-			ptouch_send_d460bt_chain(ptdev);
-			if (debug) {
-				printf(_("send PT-D460BT chain commands\n"));
-			}
-		}
 		ptouch_send_d460bt_magic(ptdev);
 		if (debug) {
 			printf(_("send PT-D460BT magic commands\n"));
@@ -125,6 +119,15 @@ int print_img(ptouch_dev ptdev, gdImage *im, int chain)
 		ptouch_send_precut_cmd(ptdev, 1);
 		if (debug) {
 			printf(_("send precut command\n"));
+		}
+	}
+	/* send chain command after precut, to allow precutting before chain */
+	if ((ptdev->devinfo->flags & FLAG_D460BT_MAGIC) == FLAG_D460BT_MAGIC) {
+		if (chain) {
+			ptouch_send_d460bt_chain(ptdev);
+			if (debug) {
+				printf(_("send PT-D460BT chain commands\n"));
+			}
 		}
 	}
 	for (int k = 0; k < gdImageSX(im); ++k) {
