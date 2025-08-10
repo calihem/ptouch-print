@@ -29,7 +29,6 @@
 #include <locale.h>	/* LC_ALL */
 
 #include "version.h"
-#include "gettext.h"	/* gettext(), ngettext() */
 #include "ptouch.h"
 
 #define _(s) gettext(s)

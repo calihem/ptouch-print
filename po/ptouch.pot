@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ptouch-print\n"
 "Report-Msgid-Bugs-To: dominic@familie-radermacher.ch\n"
-"POT-Creation-Date: 2025-08-03 10:11+0200\n"
+"POT-Creation-Date: 2025-08-10 07:19+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -153,137 +153,137 @@ msgstr ""
 msgid "debug: called ptouch_sendraster() with NULL ptdev\n"
 msgstr ""
 
-#: src/ptouch-print.c:82
+#: src/ptouch-print.c:81
 #, c-format
 msgid "nothing to print\n"
 msgstr ""
 
-#: src/ptouch-print.c:90
+#: src/ptouch-print.c:89
 #, c-format
 msgid "image is too large (%ipx x %ipx)\n"
 msgstr ""
 
-#: src/ptouch-print.c:91
+#: src/ptouch-print.c:90
 #, c-format
 msgid "maximum printing width for this tape is %ipx\n"
 msgstr ""
 
-#: src/ptouch-print.c:94
+#: src/ptouch-print.c:93
 #, c-format
 msgid "image size (%ipx x %ipx)\n"
 msgstr ""
 
-#: src/ptouch-print.c:104
+#: src/ptouch-print.c:103
 #, c-format
 msgid "ptouch_rasterstart() failed\n"
 msgstr ""
 
-#: src/ptouch-print.c:110
+#: src/ptouch-print.c:109
 #, c-format
 msgid "send print information command\n"
 msgstr ""
 
-#: src/ptouch-print.c:117
+#: src/ptouch-print.c:116
 #, c-format
 msgid "send PT-D460BT chain commands\n"
 msgstr ""
 
-#: src/ptouch-print.c:122
+#: src/ptouch-print.c:121
 #, c-format
 msgid "send PT-D460BT magic commands\n"
 msgstr ""
 
-#: src/ptouch-print.c:128
+#: src/ptouch-print.c:127
 #, c-format
 msgid "send precut command\n"
 msgstr ""
 
-#: src/ptouch-print.c:139
+#: src/ptouch-print.c:138
 #, c-format
 msgid "ptouch_sendraster() failed\n"
 msgstr ""
 
-#: src/ptouch-print.c:188
+#: src/ptouch-print.c:187
 #, c-format
 msgid "writing image '%s' failed\n"
 msgstr ""
 
-#: src/ptouch-print.c:210
+#: src/ptouch-print.c:209
 #, c-format
 msgid "debug: o baseline offset - %d\n"
 msgstr ""
 
-#: src/ptouch-print.c:211
+#: src/ptouch-print.c:210
 #, c-format
 msgid "debug: text baseline offset - %d\n"
 msgstr ""
 
-#: src/ptouch-print.c:270
+#: src/ptouch-print.c:269
 #, c-format
 msgid "render_text(): %i lines, font = '%s'\n"
 msgstr ""
 
-#: src/ptouch-print.c:273
+#: src/ptouch-print.c:272
 #, c-format
 msgid "warning: font config not available\n"
 msgstr ""
 
-#: src/ptouch-print.c:277
+#: src/ptouch-print.c:276
 #, c-format
 msgid "setting font size=%i\n"
 msgstr ""
 
-#: src/ptouch-print.c:281
+#: src/ptouch-print.c:280
 #, c-format
 msgid "could not estimate needed font size\n"
 msgstr ""
 
-#: src/ptouch-print.c:288
+#: src/ptouch-print.c:287
 #, c-format
 msgid "choosing font size=%i\n"
 msgstr ""
 
-#: src/ptouch-print.c:304 src/ptouch-print.c:332
+#: src/ptouch-print.c:303 src/ptouch-print.c:331
 #, c-format
 msgid "error in gdImageStringFT: %s\n"
 msgstr ""
 
-#: src/ptouch-print.c:514
+#: src/ptouch-print.c:513
 #, c-format
 msgid "ptouch-print version %s by Dominic Radermacher\n"
 msgstr ""
 
-#: src/ptouch-print.c:553
+#: src/ptouch-print.c:552
 #, c-format
 msgid "ptouch_init() failed\n"
 msgstr ""
 
-#: src/ptouch-print.c:556
+#: src/ptouch-print.c:555
 #, c-format
 msgid "ptouch_getstatus() failed\n"
 msgstr ""
 
-#: src/ptouch-print.c:595
+#: src/ptouch-print.c:594
 #, c-format
 msgid "maximum printing width for this printer is %ldpx\n"
 msgstr ""
 
-#: src/ptouch-print.c:596
+#: src/ptouch-print.c:595
 #, c-format
 msgid "maximum printing width for this tape is %ldpx\n"
 msgstr ""
 
-#: src/ptouch-print.c:608
+#: src/ptouch-print.c:607
 #, c-format
 msgid "failed to load image file\n"
 msgstr ""
 
-#: src/ptouch-print.c:624
+#: src/ptouch-print.c:623
 #, c-format
 msgid "could not render text\n"
 msgstr ""
 
-#: src/ptouch-print.c:659
+#: src/ptouch-print.c:658
 #, c-format
 msgid "ptouch_finalize(%d) failed\n"
 msgstr ""
