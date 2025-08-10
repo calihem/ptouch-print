@@ -30,7 +30,6 @@
 #include <locale.h>	/* LC_ALL */
 
 #include "version.h"
-#include "gettext.h"	/* gettext(), ngettext() */
 #include "ptouch.h"
 
 #define _(s) gettext(s)
@@ -81,25 +80,25 @@ static char args_doc[] = "";
 
 static struct argp_option options[] = {
 	// name, key, arg, flags, doc, group
-	{ 0, 0, 0, 0, _("options:"), 1},
-	{ "debug", 1, 0, 0, _("Enable debug output"), 1},
-	{ "font", 2, "<file>", 0, _("Use font <file> or <name>"), 1},
-	{ "fontsize", 3, "<size>", 0, _("Manually set font size"), 1},
-	{ "writepng", 4, "<file>", 0, _("Instead of printing, write output to png <file>"), 1},
-	{ "force-tape-width", 5, "<px>", 0, _("Set tape width in pixels, use together with --writepng without a printer connected"), 1},
-	{ "copies", 6, "<number>", 0, _("Sets the number of identical prints"), 1},
+	{ 0, 0, 0, 0, "options:", 1},
+	{ "debug", 1, 0, 0, "Enable debug output", 1},
+	{ "font", 2, "<file>", 0, "Use font <file> or <name>", 1},
+	{ "fontsize", 3, "<size>", 0, "Manually set font size", 1},
+	{ "writepng", 4, "<file>", 0, "Instead of printing, write output to png <file>", 1},
+	{ "force-tape-width", 5, "<px>", 0, "Set tape width in pixels, use together with --writepng without a printer connected", 1},
+	{ "copies", 6, "<number>", 0, "Sets the number of identical prints", 1},
 
-	{ 0, 0, 0, 0, _("print commands:"), 2},
-	{ "image", 'i', "<file>", 0, _("Print the given image which must be a 2 color (black/white) png"), 2},
-	{ "text", 't', "<text>", 0, _("Print line of <text>. If the text contains spaces, use quotation marks taround it"), 2},
-	{ "cutmark", 'c', 0, 0, _("Print a mark where the tape should be cut"), 2},
-	{ "pad", 'p', "<n>", 0, _("Add n pixels padding (blank tape)"), 2},
-	{ "chain", 10, 0, 0, _("Skip final feed of label and any automatic cut"), 2},
+	{ 0, 0, 0, 0, "print commands:", 2},
+	{ "image", 'i', "<file>", 0, "Print the given image which must be a 2 color (black/white) png", 2},
+	{ "text", 't', "<text>", 0, "Print line of <text>. If the text contains spaces, use quotation marks taround it", 2},
+	{ "cutmark", 'c', 0, 0, "Print a mark where the tape should be cut", 2},
+	{ "pad", 'p', "<n>", 0, "Add n pixels padding (blank tape)", 2},
+	{ "chain", 10, 0, 0, "Skip final feed of label and any automatic cut", 2},
 	{ "newline", 'n', "<line>", 0, "Add 1-4 lines for multiline text", 2},
 	
-	{ 0, 0, 0, 0, _("other commands:"), 3},
-	{ "info", 20, 0, 0, _("Show info about detected tape"), 3},
-	{ "list-supported", 21, 0, 0, _("Show printers supported by this version"), 3},
+	{ 0, 0, 0, 0, "other commands:", 3},
+	{ "info", 20, 0, 0, "Show info about detected tape", 3},
+	{ "list-supported", 21, 0, 0, "Show printers supported by this version", 3},
 	{ 0 }
 };
 
@@ -173,12 +172,6 @@ int print_img(ptouch_dev ptdev, gdImage *im, int chain)
 		}
 	}
 	if ((ptdev->devinfo->flags & FLAG_D460BT_MAGIC) == FLAG_D460BT_MAGIC) {
-		if (chain) {
-			ptouch_send_d460bt_chain(ptdev);
-			if (arguments.debug) {
-				printf(_("send PT-D460BT chain commands\n"));
-			}
-		}
 		ptouch_send_d460bt_magic(ptdev);
 		if (arguments.debug) {
 			printf(_("send PT-D460BT magic commands\n"));
@@ -188,6 +181,15 @@ int print_img(ptouch_dev ptdev, gdImage *im, int chain)
 		ptouch_send_precut_cmd(ptdev, 1);
 		if (arguments.debug) {
 			printf(_("send precut command\n"));
+		}
+	}
+	/* send chain command after precut, to allow precutting before chain */
+	if ((ptdev->devinfo->flags & FLAG_D460BT_MAGIC) == FLAG_D460BT_MAGIC) {
+		if (chain) {
+			ptouch_send_d460bt_chain(ptdev);
+			if (arguments.debug) {
+				printf(_("send PT-D460BT chain commands\n"));
+			}
 		}
 	}
 	for (int k = 0; k < gdImageSX(im); ++k) {

@@ -26,8 +26,8 @@
 #include <sys/stat.h>	/* open() */
 #include <fcntl.h>	/* open() */
 #include <time.h>	/* nanosleep(), struct timespec */
+#include <libintl.h>	/* gettext() */
 
-#include "gettext.h"	/* gettext(), ngettext() */
 #include "ptouch.h"
 
 #define _(s) gettext(s)
@@ -228,10 +228,11 @@ int ptouch_send_d460bt_magic(ptouch_dev ptdev)
 	uint8_t cmd[7];
 	/* n1 and n2 are the length margin/spacing, in px? (uint16_t value, little endian) */
 	/* A value of 0x06 is equivalent to the width margin on 6mm tape */
+	/* A value of 0x01 adds barely any margin, suitable for image printing */
 	/* The default for P-Touch software is 0x0e */
 	/* n3 must be 0x4D or the print gets corrupted! */
 	/* n4 seems to be ignored or reserved. */
-	memcpy(cmd, "\x1b\x69\x64\x0e\x00\x4d\x00", 7);
+	memcpy(cmd, "\x1b\x69\x64\x01\x00\x4d\x00", 7);
 	return ptouch_send(ptdev, (uint8_t *)cmd, sizeof(cmd));
 }
 
